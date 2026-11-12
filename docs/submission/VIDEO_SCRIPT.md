@@ -23,6 +23,8 @@
 
 Total TTS time is 123s of 165s. A person at a calm 130 words per minute would take about 139s, leaving about 26s for clicks and pauses. The recheck scene has the most room, because it has the most to show. **The deciding test is one complete human run:** final wording, real clicks, a stopwatch. It must finish by 2:45 with every number readable. A captioned draft recording of the real clicks is at `docs/submission/demo-draft.webm`. Do one timed read-through with the real clicks before recording. If it runs over, cut the 2:25–2:38 scene first.
 
+**Margin:** the captioned draft recording measures 164.7s of encoded video, just under 2:45. For a real margin under a 2:45 target, trim the 2:25–2:38 scene by 3–5 seconds (drop the cut to the AI analyst and keep the saved-list shot). Under a 3:00 limit, it already has about 15 seconds to spare.
+
 **Interaction timing (measured):** a scripted run of the real clicks on the local build, case study loaded:
 
 | Step | Time |
