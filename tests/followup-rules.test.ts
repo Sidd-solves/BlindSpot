@@ -81,8 +81,15 @@ describe('saved-list snapshot rules', () => {
       ...o,
       accounts: [{ ...o.accounts[0], status: 'skipped' as const, skipReason: 'seasonal' as const }],
     });
-    expect(skipped.accounts[0]).toMatchObject({ status: 'skipped', skipReason: 'seasonal', contactedOn: null });
-    const back = applyEdit(skipped, { ...skipped, accounts: [{ ...skipped.accounts[0], status: 'todo' as const }] });
+    expect(skipped.accounts[0]).toMatchObject({
+      status: 'skipped',
+      skipReason: 'seasonal',
+      contactedOn: null,
+    });
+    const back = applyEdit(skipped, {
+      ...skipped,
+      accounts: [{ ...skipped.accounts[0], status: 'todo' as const }],
+    });
     expect(back.accounts[0].skipReason).toBeNull();
   });
   it('a historical replay can never record a contact', () => {
