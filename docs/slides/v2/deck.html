@@ -1,0 +1,145 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>BlindSpot deck v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+@page { size: 1920px 1080px; margin: 0 }
+* { box-sizing: border-box; margin: 0; padding: 0 }
+:root { --bg:#05060f; --panel:rgba(18,20,40,.72); --line:rgba(160,150,255,.16); --text:#f3f2ff; --muted:#a7aad0; --faint:#6e72a0;
+  --violet:#a78bfa; --cyan:#22d3ee; --emerald:#34d399; --amber:#fbbf24; --fuchsia:#e879f9; --sky:#38bdf8; --rose:#fb7185; --lime:#a3e635; --blue:#60a5fa; --orange:#fb923c }
+body { background:#000; font-family: Manrope, sans-serif; color: var(--text) }
+.slide { width:1920px; height:1080px; position:relative; overflow:hidden; background: var(--bg); page-break-after: always; padding: 90px 110px }
+.slide::before { content:""; position:absolute; inset:0; background-image: linear-gradient(rgba(160,150,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(160,150,255,.05) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 80%) }
+.orb { position:absolute; border-radius:50%; filter: blur(120px); opacity:.55; pointer-events:none }
+.z { position:relative; z-index:2 }
+.kicker { font: 700 22px/1 Manrope; letter-spacing:.22em; text-transform:uppercase }
+h1 { font-size: 92px; font-weight: 800; letter-spacing: -.035em; line-height: 1.02 }
+h2 { font-size: 76px; font-weight: 800; letter-spacing: -.03em; line-height: 1.04 }
+.grad { background: linear-gradient(100deg, var(--violet), var(--fuchsia) 45%, var(--cyan)); -webkit-background-clip:text; color: transparent }
+.grad2 { background: linear-gradient(100deg, var(--emerald), var(--cyan)); -webkit-background-clip:text; color: transparent }
+.grad3 { background: linear-gradient(100deg, var(--amber), var(--rose)); -webkit-background-clip:text; color: transparent }
+.card { background: var(--panel); border: 1.5px solid var(--line); border-radius: 28px; backdrop-filter: blur(10px); position:relative; overflow:hidden }
+.card.glow { box-shadow: 0 30px 80px -30px var(--c, var(--violet)) }
+.tint { background: color-mix(in srgb, var(--c) 12%, rgba(14,16,32,.85)); border-color: color-mix(in srgb, var(--c) 45%, transparent) }
+.icon { width: 76px; height: 76px; border-radius: 22px; display:grid; place-items:center; background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); box-shadow: 0 0 40px -8px var(--c) }
+.icon svg { width: 38px; height: 38px; stroke-width: 2.2 }
+.chip { display:inline-flex; align-items:center; gap:10px; padding: 12px 22px; border-radius: 999px; font: 700 24px Manrope; border: 1.5px solid color-mix(in srgb, var(--c) 50%, transparent); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c) }
+.chip svg { width: 24px; height: 24px }
+.mono { font-family: 'JetBrains Mono', monospace }
+.shot { border-radius: 22px; border: 2px solid rgba(160,150,255,.28); box-shadow: 0 40px 120px -30px rgba(167,139,250,.6), 0 0 0 10px rgba(167,139,250,.06); display:block }
+.num { font-weight: 800; letter-spacing: -.04em; line-height: .95 }
+.lab { font-size: 26px; color: var(--muted); font-weight: 600; line-height: 1.3 }
+.foot { position:absolute; left:110px; right:110px; bottom:44px; display:flex; justify-content:space-between; font: 600 20px Manrope; color: var(--faint); z-index:3 }
+.logo { display:inline-flex; align-items:center; gap:14px; font: 800 28px Manrope }
+.logo i { width: 44px; height: 44px; border-radius: 13px; background: linear-gradient(135deg, var(--violet), var(--fuchsia) 55%, var(--cyan)); display:grid; place-items:center; box-shadow: 0 0 30px -4px var(--violet) }
+.row { display:flex; gap: 32px }
+.callout { position:absolute; z-index:4; display:flex; align-items:center; gap:12px; padding: 14px 22px; border-radius: 18px; background: rgba(8,10,22,.92); border: 2px solid var(--c); box-shadow: 0 0 40px -6px var(--c); font: 800 26px Manrope; color: var(--text) }
+.callout b { color: var(--c) }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 16px var(--c) }
+</style></head><body><section class="slide">
+  <div class="orb" style="width:900px;height:900px;left:-300px;top:-300px;background:var(--violet)"></div>
+  <div class="orb" style="width:700px;height:700px;right:-200px;bottom:-250px;background:var(--amber);opacity:.35"></div>
+  <div class="z" style="display:flex;align-items:center;height:100%;gap:60px">
+    <div style="width:860px">
+      <div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div>
+      <h1 style="font-size:116px;margin-top:46px">Your best customers don’t say <span class="grad">goodbye.</span></h1>
+      <div style="font-size:36px;color:var(--muted);font-weight:600;margin-top:34px;line-height:1.35">BlindSpot helps independent online shops find the valuable customers who have gone quiet, check the evidence, reach out, and see who orders again.</div>
+    </div>
+    <div style="flex:1;position:relative;height:760px">
+      <img class="shot" src="../../submission/shots/05_find.png" style="position:absolute;width:1080px;left:20px;top:80px;transform:perspective(2000px) rotateY(-14deg) rotateX(4deg)">
+    </div>
+  </div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:700px;height:700px;right:-200px;top:-200px;background:var(--amber);opacity:.4"></div>
+  <div class="z">
+    <div class="kicker" style="color:var(--amber)">1 · The overlooked relationship</div>
+    <h2 style="margin-top:24px">The total can rise while a <span class="grad3">regular goes quiet.</span></h2>
+    <div class="row" style="margin-top:60px;align-items:stretch">
+      <div class="card" style="flex:1.1;padding:44px">
+        <div style="display:flex;align-items:flex-end;gap:16px;height:300px">
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:38%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:13%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:1"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:42%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:14%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:1"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:41%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:12%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:1"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:49%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:13%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:1"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:55%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:8%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:1"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:58%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:4%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:0.6"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:64%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:1.5%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:0.6"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:70%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:0%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:0.6"></div></div><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="height:76%;background:linear-gradient(180deg,#7dd3fc,#6366f1);border-radius:8px 8px 0 0"></div><div style="height:0%;background:var(--amber);box-shadow:0 0 18px var(--amber);opacity:0.6"></div></div>
+        </div>
+        <div class="lab" style="margin-top:22px">Blue: total sales. Amber: one regular customer. Nothing on the chart says they stopped.</div>
+      </div>
+      <div class="card tint" style="--c:var(--violet);flex:1;padding:44px">
+        <div class="kicker" style="color:var(--violet)">Why it matters</div>
+        <div class="num" style="font-size:104px;margin-top:22px"><span style="color:var(--amber)">29.0%</span> <span style="font-size:44px;color:var(--faint)">vs</span> <span style="color:var(--emerald)">7.7%</span></div>
+        <div style="font-size:30px;font-weight:700;margin-top:22px;line-height:1.3">reported being unprofitable: businesses getting under a quarter of revenue from repeat customers, vs over half.</div>
+        <div class="lab" style="margin-top:18px;font-size:22px">Small Business Expo survey of 1,100+ owners, 2026. An association, not proof of cause.</div>
+      </div>
+    </div>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>2 / 7</span></div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:800px;height:800px;left:-250px;bottom:-300px;background:var(--sky);opacity:.4"></div>
+  <div class="z">
+    <div class="kicker" style="color:var(--sky)">2 · The owner’s decision</div>
+    <h2 style="margin-top:24px">Not “are sales up?” but<br><span class="grad">“which regulars should I contact first?”</span></h2>
+    <div class="row" style="margin-top:70px">
+      <div class="card" style="flex:1;padding:40px"><div class="icon" style="--c:var(--violet)"><i data-lucide="search"></i></div><div style="font-size:36px;font-weight:800;margin-top:26px">Who went quiet?</div><div class="lab" style="margin-top:12px">Top customers with no order in 90 days, each with their usual rhythm.</div></div><div class="card" style="flex:1;padding:40px"><div class="icon" style="--c:var(--amber)"><i data-lucide="scale"></i></div><div style="font-size:36px;font-weight:800;margin-top:26px">Is it real?</div><div class="lab" style="margin-top:12px">One big account can be most of the money. See the history, not just a total.</div></div><div class="card" style="flex:1;padding:40px"><div class="icon" style="--c:var(--emerald)"><i data-lucide="phone-call"></i></div><div style="font-size:36px;font-weight:800;margin-top:26px">What do I do?</div><div class="lab" style="margin-top:12px">Pick who to contact, send a short note, and later see who ordered again.</div></div>
+    </div>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>3 / 7</span></div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:800px;height:800px;right:-250px;top:-250px;background:var(--violet)"></div>
+  <div class="z" style="display:flex;gap:60px;height:100%;align-items:center">
+    <div style="width:720px">
+      <div class="kicker" style="color:var(--violet)">3 · What the data showed</div>
+      <h2 style="margin-top:24px">10 top accounts went quiet in a real shop’s records.</h2>
+      <div class="num grad" style="font-size:132px;margin-top:40px">£93,531.25</div>
+      <div class="lab" style="margin-top:12px">their spending in the year before. Every pound traces to exact rows.</div>
+      <div class="card tint" style="--c:var(--amber);padding:26px 30px;margin-top:36px">
+        <div style="font-size:28px;font-weight:700;line-height:1.35">One account is <b style="color:var(--amber)">41%</b> of that, from just 3 orders. BlindSpot shows the catch instead of hiding it.</div>
+      </div>
+      <div class="lab" style="margin-top:20px;font-size:21px">UCI Online Retail II (public historical data, CC BY 4.0), 25% customer sample.</div>
+    </div>
+    <div style="flex:1"><img class="shot" src="../../submission/shots/05_find.png" style="width:100%"></div>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>4 / 7</span></div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:800px;height:800px;left:-250px;top:-250px;background:var(--emerald);opacity:.4"></div>
+  <div class="z">
+    <div class="kicker" style="color:var(--emerald)">4 · The evidence</div>
+    <h2 style="margin-top:24px">Checked three ways, <span class="grad2">and honest about the limits.</span></h2>
+    <div class="row" style="margin-top:56px;align-items:stretch">
+      <div class="card" style="flex:1;padding:38px"><div class="icon" style="--c:var(--sky)"><i data-lucide="table-2"></i></div><div style="font-size:32px;font-weight:800;margin-top:22px">Exact rows</div><div class="lab" style="margin-top:10px">Every amount opens into the records behind it, reconciled to the penny.</div>
+<div class="mono" style="margin-top:34px;font-size:24px;line-height:1.9;color:var(--muted)">Finding <b style="color:var(--text)">£93,531.25</b><br>Rows behind it <b style="color:var(--emerald)">£93,531.25 ✓</b></div></div>
+      <div class="card" style="flex:1;padding:38px"><div class="icon" style="--c:var(--violet)"><i data-lucide="code-2"></i></div><div style="font-size:32px;font-weight:800;margin-top:22px">Independent check</div><div class="lab" style="margin-top:10px">A separate Python script gets the same 10 accounts, orders, gaps and total.</div>
+<div class="mono" style="margin-top:34px;font-size:22px;line-height:1.8;color:var(--muted)">accounts <b style="color:var(--emerald)">10 / 10</b><br>orders, gaps, silence <b style="color:var(--emerald)">match</b><br>replay counts <b style="color:var(--emerald)">match</b></div></div>
+      <div class="card tint" style="--c:var(--emerald);flex:1.35;padding:38px">
+        <div class="icon" style="--c:var(--emerald)"><i data-lucide="history"></i></div>
+        <div style="font-size:32px;font-weight:800;margin-top:22px">Replayed on the shop’s past</div>
+        <div style="display:flex;gap:30px;margin-top:20px;align-items:baseline"><div class="num" style="font-size:78px;color:var(--amber)">32–36%</div><div class="num" style="font-size:78px;color:var(--emerald)">3–8%</div></div>
+        <div class="lab" style="margin-top:8px">flagged customers vs other top customers who placed no order in the next 180 days (Fisher p &lt; 0.005, both replays). <b style="color:var(--text)">Most flagged customers still came back</b>: it’s a list to review first.</div>
+      </div>
+    </div>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>5 / 7</span></div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:800px;height:800px;right:-250px;bottom:-300px;background:var(--cyan);opacity:.4"></div>
+  <div class="z" style="display:flex;gap:56px;height:100%;align-items:center">
+    <div style="width:700px">
+      <div class="kicker" style="color:var(--cyan)">5 · The loop</div>
+      <h2 style="margin-top:24px">Find. Decide. Act. <span class="grad">Recheck.</span></h2>
+      <div style="margin-top:36px;display:grid;gap:16px">
+        <div style="display:flex;gap:20px;align-items:flex-start"><span class="chip" style="--c:var(--violet);min-width:150px;justify-content:center">Find</span><span class="lab" style="padding-top:8px">Quiet top customers and their rhythm</span></div><div style="display:flex;gap:20px;align-items:flex-start"><span class="chip" style="--c:var(--sky);min-width:150px;justify-content:center">Decide</span><span class="lab" style="padding-top:8px">Tick who to contact; skip with a reason</span></div><div style="display:flex;gap:20px;align-items:flex-start"><span class="chip" style="--c:var(--amber);min-width:150px;justify-content:center">Act</span><span class="lab" style="padding-top:8px">Claude drafts a checked note; you send it and log the day</span></div><div style="display:flex;gap:20px;align-items:flex-start"><span class="chip" style="--c:var(--emerald);min-width:150px;justify-content:center">Recheck</span><span class="lab" style="padding-top:8px">A newer export: who ordered after the list, and after each contact</span></div>
+      </div>
+      <div class="card tint" style="--c:var(--sky);padding:24px 28px;margin-top:30px"><div style="font-size:25px;font-weight:700;line-height:1.4">Historical replay, no outreach recorded: of 14 quiet customers listed as of Sep 1, 2011, <b style="color:var(--sky)">7 ordered again</b> within 100 days in the shop’s real records.</div></div>
+    </div>
+    <div style="flex:1"><img class="shot" src="../../submission/shots/06_recheck_replay.png" style="width:100%"></div>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>6 / 7</span></div>
+</section>
+<section class="slide">
+  <div class="orb" style="width:900px;height:900px;left:-300px;top:-300px;background:var(--violet)"></div>
+  <div class="orb" style="width:700px;height:700px;right:-200px;bottom:-250px;background:var(--amber);opacity:.35"></div>
+  <div class="z">
+    <div class="kicker" style="color:var(--fuchsia)">6 · What’s still open</div>
+    <h2 style="margin-top:24px">Next: a real owner, <span class="grad">their own export.</span></h2>
+    <div class="row" style="margin-top:56px">
+      <div class="card" style="flex:1;padding:38px"><div style="font-size:30px;font-weight:800">Validated on one public shop’s history.</div><div class="lab" style="margin-top:12px">Not yet confirmed by a merchant. The protocol is written: an owner marks contact or skip-with-reason, unassisted, then rechecks after 30–60 days.</div></div>
+      <div class="card" style="flex:1;padding:38px"><div style="font-size:30px;font-weight:800">Recorded, not claimed.</div><div class="lab" style="margin-top:12px">A later order isn’t proof an email worked, and BlindSpot never says it is. No revenue is claimed as recovered.</div></div>
+    </div>
+    <h1 style="font-size:96px;margin-top:70px">Your best customers don’t say goodbye. <span class="grad">Now you’ll notice.</span></h1>
+  </div><div class="foot"><span><div class="logo"><i><svg width="26" height="26" viewBox="0 0 32 32"><path d="M7 21l6-7 5 4 7-9" stroke="white" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Blind<span class="grad">spot</span></span></div></span><span>7 / 7</span></div>
+</section><script>lucide.createIcons()</script></body></html>

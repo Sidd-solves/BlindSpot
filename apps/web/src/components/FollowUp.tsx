@@ -615,7 +615,7 @@ export function FollowUp() {
                               {usd(a.spend, true)} the year before · {a.orders} orders
                               {a.typicalGapDays ? ` · usually every ${a.typicalGapDays} days` : ''}
                               {a.status === 'skipped' && a.skipReason
-                                ? ` · skipped: ${SKIP_REASONS.find((r) => r.id === a.skipReason)?.label.toLowerCase()}`
+                                ? ` · skipped (you said: ${SKIP_REASONS.find((r) => r.id === a.skipReason)?.label.toLowerCase()})`
                                 : ''}
                               {a.note ? ' · has a note' : ''}
                             </span>
@@ -670,7 +670,9 @@ export function FollowUp() {
                               >
                                 {a.status === 'skipped' && (
                                   <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                                    <span className="text-[var(--muted)]">Why not contact them?</span>
+                                    <span className="text-[var(--muted)]">
+                                      Why skip them? (optional, your call)
+                                    </span>
                                     {SKIP_REASONS.map((r) => (
                                       <button
                                         key={r.id}
