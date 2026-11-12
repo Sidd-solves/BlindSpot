@@ -18,10 +18,13 @@ export function AiWinback({
   customer,
   shopName,
   template,
+  asOf,
 }: {
   customer: string;
   shopName: string;
   template: string;
+  /** For a replay list: the day the list was read as of. */
+  asOf?: string;
 }) {
   const { health } = useStore();
   const [d, setD] = useState<Draft | null>(null),
@@ -33,7 +36,7 @@ export function AiWinback({
     setBusy(true);
     setErr(null);
     try {
-      setD(await post<Draft>('/api/ai/winback', { customer, shopName }));
+      setD(await post<Draft>('/api/ai/winback', { customer, shopName, ...(asOf ? { asOf } : {}) }));
     } catch (e: any) {
       setErr(e?.message ?? 'Writing failed.');
     }

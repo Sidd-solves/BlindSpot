@@ -11,12 +11,25 @@ import {
   detectFields,
   earlyWarning,
   winBackList,
+  sliceBefore,
+  followUpCheck,
   stockOuts,
   cashRadar,
   eventImpact,
 } from '@blindspot/analytics';
 import { defineTool, memo } from '../core';
 import { DashboardSpecSchema } from './design';
+
+const IsoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
+/** The data as it looked before `asOf`, cached per view so repeated replays reuse the same rows (and analysis memo). */
+const replayCache = new WeakMap<object, Map<string, ReturnType<typeof sliceBefore>>>();
+function replayView<D extends Parameters<typeof sliceBefore>[0]>(v: D, asOf?: string): D {
+  if (!asOf) return v;
+  let m = replayCache.get(v.rows);
+  if (!m) replayCache.set(v.rows, (m = new Map()));
+  if (!m.has(asOf)) m.set(asOf, sliceBefore(v, asOf));
+  return m.get(asOf) as D;
+}
 
 export const runScenario = defineTool({
   name: 'run-scenario',
@@ -218,7 +231,10 @@ export const earlyWarningTool = defineTool({
   core: false,
   description:
     'Customers slipping away before they are lost: repeat customers silent 45-90 days, ranked by their last-year spend. The rule is replayed 90 days in the past using only earlier orders, and the result says how often flagged customers really stayed away versus everyone else (two-proportion z-test).',
-  input: z.object({ top: z.number().int().min(1).max(500).default(50) }),
+  input: z.object({
+    top: z.number().int().min(1).max(500).default(50),
+    asOf: IsoDay.optional().describe('Replay: read only rows dated before this day (YYYY-MM-DD).'),
+  }),
   output: z.object({
     ok: z.boolean(),
     reason: z.string().optional(),
@@ -258,8 +274,8 @@ export const earlyWarningTool = defineTool({
       }),
     ),
   }),
-  async handler(ctx, { top }) {
-    const v = ctx.state.view();
+  async handler(ctx, { top, asOf }) {
+    const v = replayView(ctx.state.view(), asOf);
     const r = memo(v.rows, 'early-warning', () => earlyWarning(v));
     return { ...r, total: r.customers.length, customers: r.customers.slice(0, top) };
   },
@@ -271,11 +287,15 @@ export const winBackTool = defineTool({
   core: false,
   description:
     'The best customers who went quiet (same definition as the lost-customer finding), each with what they used to buy, their spend and a plain draft message to send. Read-only: nothing is sent.',
-  input: z.object({ shopName: z.string().max(80).default('our shop') }),
+  input: z.object({
+    shopName: z.string().max(80).default('our shop'),
+    asOf: IsoDay.optional().describe('Replay: read only rows dated before this day (YYYY-MM-DD).'),
+  }),
   output: z.object({
     ok: z.boolean(),
     reason: z.string().optional(),
     cutoff: z.string(),
+    asOf: z.string().optional(),
     customers: z.array(
       z.object({
         customer: z.string(),
@@ -284,14 +304,56 @@ export const winBackTool = defineTool({
         spend: z.number(),
         lastOrder: z.string(),
         daysSilent: z.number(),
+        orderDays: z.number().optional(),
+        typicalGapDays: z.number().nullable().optional(),
+        share: z.number().optional(),
         topProducts: z.array(z.string()),
         message: z.string(),
       }),
     ),
     total: z.number(),
   }),
-  async handler(ctx, { shopName }) {
-    return winBackList(ctx.state.view(), shopName);
+  async handler(ctx, { shopName, asOf }) {
+    return winBackList(replayView(ctx.state.view(), asOf), shopName);
+  },
+});
+
+export const followUpTool = defineTool({
+  name: 'follow-up-check',
+  category: 'Business Intelligence',
+  core: false,
+  description:
+    'After a follow-up list was made on a date, read the current data and report which of those exact customer IDs ordered again on or after that date, how many orders and what they bought (returns excluded), which IDs were not found, and how often other repeat customers ordered again in the same window as context. Observed orders only: never claims the contact caused a reorder.',
+  input: z.object({
+    since: IsoDay.describe('The day the list was made (YYYY-MM-DD).'),
+    customers: z.array(z.string().min(1).max(200)).min(1).max(500),
+  }),
+  output: z.object({
+    ok: z.boolean(),
+    reason: z.string().optional(),
+    since: z.string(),
+    dataEnd: z.string(),
+    daysObserved: z.number(),
+    accounts: z.array(
+      z.object({
+        customer: z.string(),
+        found: z.boolean(),
+        lastBefore: z.string().nullable(),
+        ordersAfter: z.number(),
+        salesAfter: z.number(),
+        firstOrderAfter: z.string().nullable(),
+      }),
+    ),
+    matched: z.number(),
+    unmatched: z.array(z.string()),
+    orderedAgain: z.number(),
+    salesAfter: z.number(),
+    baseline: z.object({ customers: z.number(), orderedAgain: z.number() }).nullable(),
+    note: z.string(),
+  }),
+  async handler(ctx, { since, customers }) {
+    const v = ctx.state.view();
+    return followUpCheck(v, since, customers);
   },
 });
 
@@ -418,6 +480,7 @@ export const EXTRA_TOOLS = [
   forecastSalesTool,
   earlyWarningTool,
   winBackTool,
+  followUpTool,
   stockOutsTool,
   cashRadarTool,
   eventImpactTool,

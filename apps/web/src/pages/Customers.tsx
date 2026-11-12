@@ -1,20 +1,10 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import {
-  BellRing,
-  Check,
-  ChevronDown,
-  Download,
-  FlaskConical,
-  HeartHandshake,
-  Mail,
-  Radar,
-  UserMinus,
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { BellRing, Download, FlaskConical, Radar } from 'lucide-react';
 import { usd } from '../api';
 import { useStore } from '../store';
 import { ToolError, useTool } from '../components/useTool';
-import { AiWinback } from '../components/AiWinback';
+import { FollowUp } from '../components/FollowUp';
 import { Card, CardHead, Chip, CountUp, Empty, Loading, stagger } from '../components/ui';
 import { Confidence } from '../components/Confidence';
 
@@ -47,23 +37,6 @@ type EW = {
   valueAtRisk: number;
   spread: { silentDays: number; yearSpend: number; zone: 'active' | 'slipping' | 'lost' }[];
 };
-type WB = {
-  ok: boolean;
-  reason?: string;
-  cutoff: string;
-  customers: {
-    customer: string;
-    email: string | null;
-    orders: number;
-    spend: number;
-    lastOrder: string;
-    daysSilent: number;
-    topProducts: string[];
-    message: string;
-  }[];
-  total: number;
-};
-
 const ZONE = {
   active: { c: 'var(--emerald)', label: 'Active' },
   slipping: { c: 'var(--amber)', label: 'Slipping (45–90 days)' },
@@ -180,32 +153,12 @@ function RhythmStrip({ spread }: { spread: EW['spread'] }) {
 }
 
 export default function Customers() {
-  const { version, dataset } = useStore();
-  const [shop, setShop] = useState(''),
-    [shopName, setShopName] = useState('our shop'),
-    [open, setOpen] = useState<string | null>(null),
-    [copied, setCopied] = useState<string | null>(null),
-    [all, setAll] = useState(false);
-  // The shop name only changes the draft messages: wait for typing to pause before rebuilding them.
-  useEffect(() => {
-    const t = setTimeout(() => setShopName(shop.trim() || 'our shop'), 350);
-    return () => clearTimeout(t);
-  }, [shop]);
+  const { version } = useStore();
+  const [all, setAll] = useState(false);
   const ewQ = useTool<EW>('early-warning', { top: 200 }, [version]);
-  const wbQ = useTool<WB>('win-back-list', { shopName }, [version, shopName]);
-  // Keep the previous list on screen only while the shop name is being edited on the same data. The cached list is
-  // tagged with the dataset version it was *requested* for (useTool only returns data for the current inputs), so a
-  // list from an earlier dataset or filter can never be relabelled as current and shown next to new results.
-  const [lastWb, setLastWb] = useState<{ version: number; data: WB } | null>(null);
-  const wbVersion = wbQ.data ? version : null; // data is only non-null when it answers [version, shopName] now
-  useEffect(() => {
-    if (wbQ.data && wbVersion !== null) setLastWb({ version: wbVersion, data: wbQ.data });
-  }, [wbQ.data, wbVersion]);
-  const ew = ewQ.data,
-    wb = wbQ.data ?? (lastWb && lastWb.version === version ? lastWb.data : null);
-  const err = ewQ.error ?? wbQ.error;
-  if (err) return <ToolError message={err} retry={() => (ewQ.error ? ewQ.retry() : wbQ.retry())} />;
-  if (!ew || !wb)
+  const ew = ewQ.data;
+  if (ewQ.error) return <ToolError message={ewQ.error} retry={ewQ.retry} />;
+  if (!ew)
     return (
       <Loading
         steps={[
@@ -216,27 +169,21 @@ export default function Customers() {
         ]}
       />
     );
-  if (!ew.ok && !wb.ok)
+  if (!ew.ok && !ew.spread.length)
     return (
-      <Card hover={false} className="p-6">
-        <Empty icon={<Radar size={22} />} title="No customer history to read">
-          {ew.reason ?? wb.reason}
-        </Empty>
-      </Card>
+      <div className="grid grid-cols-1 gap-3">
+        <FollowUp />
+        <Card hover={false} className="p-6">
+          <Empty icon={<Radar size={22} />} title="No customer history to read">
+            {ew.reason}
+          </Empty>
+        </Card>
+      </div>
     );
 
   const b = ew.backtest;
   const flagRate = b ? pctOf(b.flaggedStayedAway, b.flagged) : 0,
     otherRate = b ? pctOf(b.othersStayedAway, b.others) : 0;
-  const copy = async (key: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* clipboard blocked; the text is still visible to copy by hand */
-    }
-  };
   const shownWarn = all ? ew.customers : ew.customers.slice(0, 10);
 
   return (
@@ -246,6 +193,8 @@ export default function Customers() {
       animate="show"
       className="grid grid-cols-1 gap-3 lg:grid-cols-12"
     >
+      <FollowUp />
+
       {/* Slipping away */}
       <Card c="var(--amber)" className="lg:col-span-4" hover={false}>
         <CardHead
@@ -341,101 +290,6 @@ export default function Customers() {
             Not enough repeat customers 90 days ago to test the warning.
           </div>
         )}
-      </Card>
-
-      {/* Already gone */}
-      <Card c="var(--violet)" className="lg:col-span-4" hover={false}>
-        <CardHead icon={<UserMinus size={13} />} title="Best customers who went quiet" c="var(--violet)" />
-        <div className="px-3.5 pb-3.5">
-          <div className="flex items-baseline gap-2">
-            <CountUp value={wb.customers.length} className="text-[30px] font-semibold" />
-            <span className="text-[12px] text-[var(--muted)]">top customers, no order in 90 days</span>
-            <Confidence sure={{ kind: 'rule' }} className="ml-auto" />
-          </div>
-          <div className="text-[12px] text-[var(--muted)]">
-            <CountUp value={wb.total} format={(n) => usd(n)} className="font-semibold text-[var(--text)]" />{' '}
-            in the year before they went quiet.
-          </div>
-          {wb.customers.length > 0 && (
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-              {[
-                [
-                  'Orders each',
-                  (wb.customers.reduce((x, c) => x + c.orders, 0) / wb.customers.length).toFixed(1),
-                ],
-                ['Avg spend', usd(wb.total / wb.customers.length, true)],
-                ['Longest silent', `${Math.max(...wb.customers.map((c) => c.daysSilent))} days`],
-              ].map(([l, v], i) => (
-                <motion.div
-                  key={l}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + i * 0.07 }}
-                  className="tint rounded-lg px-2 py-1.5"
-                  style={{ '--c': 'var(--violet)' } as CSSProperties}
-                >
-                  <div className="text-[10.5px] text-[var(--muted)]">{l}</div>
-                  <div className="mono text-[13px] font-semibold">{v}</div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-primary !h-7 text-[11.5px]"
-              disabled={!wb.customers.length}
-              onClick={() =>
-                download(
-                  'win-back-list.csv',
-                  csv([
-                    [
-                      'Customer',
-                      'Email',
-                      'Orders in the year',
-                      'Spend',
-                      'Last order',
-                      'Days silent',
-                      'Usually bought',
-                      'Draft message',
-                    ],
-                    ...wb.customers.map((c) => [
-                      c.customer,
-                      c.email,
-                      c.orders,
-                      c.spend,
-                      c.lastOrder,
-                      c.daysSilent,
-                      c.topProducts.join('; '),
-                      c.message,
-                    ]),
-                  ]),
-                )
-              }
-            >
-              <Download size={12} />
-              Download the list
-            </motion.button>
-            {wb.customers.some((c) => c.email) && (
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                className="btn !h-7 text-[11.5px]"
-                onClick={() =>
-                  copy(
-                    'emails',
-                    wb.customers
-                      .filter((c) => c.email)
-                      .map((c) => c.email)
-                      .join(', '),
-                  )
-                }
-              >
-                {copied === 'emails' ? <Check size={12} /> : <Mail size={12} />}
-                {copied === 'emails' ? 'Copied' : 'Copy all emails'}
-              </motion.button>
-            )}
-          </div>
-        </div>
       </Card>
 
       {/* Rhythm */}
@@ -557,83 +411,6 @@ export default function Customers() {
               </motion.button>
             </div>
           )}
-        </div>
-      </Card>
-
-      {/* Win-back list with messages */}
-      <Card c="var(--violet)" className="lg:col-span-6" hover={false}>
-        <CardHead
-          icon={<HeartHandshake size={13} />}
-          title="Win-back list, ready to send"
-          c="var(--violet)"
-          right={
-            <input
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-              placeholder="Your shop name"
-              maxLength={80}
-              className="input !h-7 w-[150px] text-[11.5px]"
-              aria-label="Shop name used in the messages"
-            />
-          }
-        />
-        <div className="px-3.5 pb-3">
-          {!wb.ok && <div className="py-4 text-[12px] text-[var(--muted)]">{wb.reason}</div>}
-          {wb.customers.map((c, i) => {
-            const isOpen = open === c.customer;
-            return (
-              <motion.div
-                key={c.customer}
-                initial={{ opacity: 0, x: 6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.04 * i }}
-                className="border-b last:border-0"
-                style={{ borderColor: 'var(--line)' }}
-              >
-                <button
-                  className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-1.5 text-left text-[12px]"
-                  onClick={() => setOpen(isOpen ? null : c.customer)}
-                  aria-expanded={isOpen}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold">{c.email ?? c.customer}</span>
-                    <span className="block truncate text-[11px] text-[var(--faint)]">
-                      {c.orders} orders · last {day(c.lastOrder)} · {c.topProducts[0] ?? ''}
-                    </span>
-                  </span>
-                  <span className="mono font-semibold">{usd(c.spend, true)}</span>
-                  <motion.span animate={{ rotate: isOpen ? 180 : 0 }} className="text-[var(--muted)]">
-                    <ChevronDown size={13} />
-                  </motion.span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div
-                        className="tint mb-2 rounded-lg p-2.5"
-                        style={{ '--c': 'var(--violet)' } as CSSProperties}
-                      >
-                        <div className="mb-1 text-[11px] text-[var(--muted)]">
-                          Usually bought: {c.topProducts.join(' · ') || 'not recorded'}
-                        </div>
-                        <AiWinback customer={c.customer} shopName={shopName} template={c.message} />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
-          <div className="mt-2 text-[11px] text-[var(--faint)]">
-            Nothing is sent from Blindspot. Copy a message into your own email, or download the list.
-            {dataset?.source === 'case-study' &&
-              ' The UK shop’s customer IDs are anonymous, so there are no emails here.'}
-          </div>
         </div>
       </Card>
     </motion.div>
