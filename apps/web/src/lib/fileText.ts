@@ -144,6 +144,48 @@ async function pdfToText(f: File): Promise<{ text: string; note?: string }> {
  * A photo or screenshot of a printed report or spreadsheet: shrunk in the browser, then transcribed by Claude into a
  * table exactly as printed. The result goes through the same upload review as any file, so every column is checked.
  */
+export interface PhotoTable {
+  name: string;
+  title: string;
+  columns: string[];
+  table: (string | number | null)[][];
+  unreadable: string[];
+}
+/** Claude reads a photo of a table into rows. The caller shows them for review before anything is analysed. */
+export async function readPhoto(f: File): Promise<PhotoTable> {
+  const { SID } = await import('../api');
+  const bmp = await createImageBitmap(f);
+  const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * scale);
+  c.height = Math.round(bmp.height * scale);
+  c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
+  const data = c.toDataURL('image/jpeg', 0.9).split(',')[1];
+  const r = await fetch('/api/ai/photo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Session-Id': SID },
+    body: JSON.stringify({ data, mediaType: 'image/jpeg' }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new FileReadError(j.error?.message ?? 'Reading the photo failed. Try a clearer photo.');
+  return {
+    name: f.name.replace(/\.[^.]+$/, '') + ' (from photo).csv',
+    title: j.title ?? '',
+    columns: j.columns ?? [],
+    table: j.table ?? [],
+    unreadable: j.unreadable ?? [],
+  };
+}
+export const isPhoto = (f: File) =>
+  /\.(png|jpe?g|gif|webp)$/i.test(f.name) || /^image\/(png|jpeg|gif|webp)$/.test(f.type);
+export function tableToCsv(columns: string[], rows: (string | number | null)[][]) {
+  const esc = (x: unknown) => {
+    const t = x == null ? '' : String(x);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  return [columns, ...rows].map((r) => r.map(esc).join(',')).join('\n');
+}
+
 async function photoToText(f: File): Promise<{ text: string; note: string }> {
   const { SID } = await import('../api');
   const bmp = await createImageBitmap(f);

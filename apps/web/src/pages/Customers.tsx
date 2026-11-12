@@ -196,7 +196,7 @@ export default function Customers() {
       <FollowUp />
 
       {/* Slipping away */}
-      <Card c="var(--amber)" className="lg:col-span-4" hover={false}>
+      <Card c="var(--amber)" className="lg:col-span-6" hover={false}>
         <CardHead
           icon={<BellRing size={13} />}
           title="Worth checking on"
@@ -227,7 +227,7 @@ export default function Customers() {
       </Card>
 
       {/* Proof */}
-      <Card c="var(--emerald)" className="lg:col-span-4" hover={false}>
+      <Card c="var(--emerald)" className="lg:col-span-6" hover={false}>
         <CardHead
           icon={<FlaskConical size={13} />}
           title="Did the warning work before?"
@@ -245,7 +245,7 @@ export default function Customers() {
             </div>
             {[
               { l: 'Flagged then', n: b.flagged, r: flagRate, c: 'var(--amber)' },
-              { l: 'Everyone else', n: b.others, r: otherRate, c: 'var(--emerald)' },
+              { l: 'Other repeat customers', n: b.others, r: otherRate, c: 'var(--emerald)' },
             ].map((x, i) => (
               <div key={x.l}>
                 <div className="mb-0.5 flex justify-between text-[12px]">

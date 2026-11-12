@@ -475,7 +475,8 @@ function FollowUpsTab() {
             <span className="min-w-0">
               <span className="block truncate font-bold">{l.name}</span>
               <span className="block truncate text-[11px] text-[var(--faint)]">
-                {l.accounts.length} customers · {done} contacted · {l.source}
+                {l.replay ? 'Historical replay · ' : ''}
+                {l.accounts.length} customers{l.replay ? '' : ` · ${done} contacted`} · {l.source}
               </span>
             </span>
             <span className="flex items-center gap-2">
@@ -489,7 +490,7 @@ function FollowUpsTab() {
               </span>
               {c ? (
                 <Chip c="var(--emerald)">
-                  {c.orderedAgain} of {c.matched} ordered again
+                  {c.orderedAgain} of {c.matched} ordered since
                 </Chip>
               ) : (
                 <Chip c="var(--faint)">Not rechecked</Chip>

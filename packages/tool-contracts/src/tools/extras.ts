@@ -13,6 +13,7 @@ import {
   winBackList,
   sliceBefore,
   followUpCheck,
+  parseDay,
   stockOuts,
   cashRadar,
   eventImpact,
@@ -20,7 +21,10 @@ import {
 import { defineTool, memo } from '../core';
 import { DashboardSpecSchema } from './design';
 
-const IsoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
+const IsoDay = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+  .refine((d) => Number.isFinite(parseDay(d)), 'Not a real calendar date');
 /** The data as it looked before `asOf`, cached per view so repeated replays reuse the same rows (and analysis memo). */
 const replayCache = new WeakMap<object, Map<string, ReturnType<typeof sliceBefore>>>();
 function replayView<D extends Parameters<typeof sliceBefore>[0]>(v: D, asOf?: string): D {
@@ -318,15 +322,32 @@ export const winBackTool = defineTool({
   },
 });
 
+const FollowAccountOut = z.object({
+  customer: z.string(),
+  found: z.boolean(),
+  outcome: z.enum(['reordered', 'no-order-seen', 'not-found']),
+  lastBefore: z.string().nullable(),
+  ordersAfter: z.number(),
+  salesAfter: z.number(),
+  firstOrderAfter: z.string().nullable(),
+  contactedOn: z.string().nullable(),
+  ordersAfterContact: z.number(),
+  salesAfterContact: z.number(),
+  sameDayOrders: z.number(),
+});
 export const followUpTool = defineTool({
   name: 'follow-up-check',
   category: 'Business Intelligence',
   core: false,
   description:
-    'After a follow-up list was made on a date, read the current data and report which of those exact customer IDs ordered again on or after that date, how many orders and what they bought (returns excluded), which IDs were not found, and how often other repeat customers ordered again in the same window as context. Observed orders only: never claims the contact caused a reorder.',
+    'After a follow-up list was made on a date, read the current (unfiltered) data and report, for those exact customer IDs: orders since the list date, and orders on days strictly after each customer\'s own recorded contact day (same-day orders counted apart: the data has dates, not times). Returns excluded. Lists IDs not found, the longest stretch with no data at all in the window (so "no order seen" is not mistaken for "did not return"), and how often other repeat customers ordered in the same window as context. Observed orders only: never claims the contact caused a reorder. Refuses while filters are on.',
   input: z.object({
     since: IsoDay.describe('The day the list was made (YYYY-MM-DD).'),
     customers: z.array(z.string().min(1).max(200)).min(1).max(500),
+    contacts: z
+      .record(z.string().max(200), IsoDay)
+      .optional()
+      .describe('Customer ID → the day they were contacted.'),
   }),
   output: z.object({
     ok: z.boolean(),
@@ -334,26 +355,40 @@ export const followUpTool = defineTool({
     since: z.string(),
     dataEnd: z.string(),
     daysObserved: z.number(),
-    accounts: z.array(
-      z.object({
-        customer: z.string(),
-        found: z.boolean(),
-        lastBefore: z.string().nullable(),
-        ordersAfter: z.number(),
-        salesAfter: z.number(),
-        firstOrderAfter: z.string().nullable(),
-      }),
-    ),
+    accounts: z.array(FollowAccountOut),
     matched: z.number(),
     unmatched: z.array(z.string()),
     orderedAgain: z.number(),
     salesAfter: z.number(),
+    contacted: z.object({
+      customers: z.number(),
+      orderedAfter: z.number(),
+      salesAfter: z.number(),
+      sameDay: z.number(),
+    }),
+    notContacted: z.object({ customers: z.number(), orderedSince: z.number() }),
+    coverage: z
+      .object({
+        from: z.string(),
+        to: z.string(),
+        longestGapDays: z.number(),
+        gapFrom: z.string().nullable(),
+        gapTo: z.string().nullable(),
+        thin: z.boolean(),
+      })
+      .nullable(),
     baseline: z.object({ customers: z.number(), orderedAgain: z.number() }).nullable(),
     note: z.string(),
   }),
-  async handler(ctx, { since, customers }) {
-    const v = ctx.state.view();
-    return followUpCheck(v, since, customers);
+  async handler(ctx, { since, customers, contacts }) {
+    const r = followUpCheck(ctx.state.dataset, since, customers, contacts ?? {});
+    if (ctx.state.filters.size)
+      return {
+        ...r,
+        ok: false,
+        reason: `Clear the filters (${[...ctx.state.filters.keys()].join(', ')}) first. A filtered view hides some orders, so a customer could look like they never came back when they did.`,
+      };
+    return r;
   },
 });
 

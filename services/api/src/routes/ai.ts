@@ -4,8 +4,24 @@ import { z } from 'zod';
 import { callTool, wrapUntrusted, UNTRUSTED_RULE } from '@blindspot/tool-contracts';
 import { money } from '@blindspot/analytics';
 import type { RouteContext } from './context';
+
+/** The shop's 400 most-sold product names, so a draft that names a product the customer never bought is caught. */
+const catalogCache = new WeakMap<object, string[]>();
+function productCatalog(ds: { rows: any[] }): string[] {
+  const hit = catalogCache.get(ds.rows);
+  if (hit) return hit;
+  const col = ['Product', 'Description', 'Item', 'Title'].find((c) => ds.rows[0] && c in ds.rows[0]);
+  const n = new Map<string, number>();
+  if (col) for (const r of ds.rows) if (r[col]) n.set(String(r[col]), (n.get(String(r[col])) ?? 0) + 1);
+  const out = [...n.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 400)
+    .map(([p]) => p);
+  catalogCache.set(ds.rows, out);
+  return out;
+}
 import { getModel, type makeLlm } from '../llm';
-import { factCheck } from '../verify';
+import { checkDraft, factCheck } from '../verify';
 import { aiCalls, recordAi } from '../ai-usage';
 
 /**
@@ -166,20 +182,52 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
           .json({ error: { code: 'NOT_FOUND', message: 'That customer is not on the win-back list.' } });
       const cur = ctx.state.view().currency ?? 'USD';
       const facts = { ...c, spendText: money(c.spend, cur), shopName: p.data.shopName };
-      const out = await structured<{ subject: string; body: string; why: string }>(
+      const catalog = productCatalog(ctx.state.view());
+      const system = `Write a short, warm, specific email from a small shop owner to a regular customer who has not ordered in a while. Mention only products from topProducts. Never mention money, spend, order counts, dates or exact time periods, tracking or "data". Never say or imply they have left or stopped buying. No discounts or offers; offer help instead. Under 90 words, sign off as the shop. "why" = one sentence for the owner (not the customer) on why this customer is worth contacting, using only the given figures. ${UNTRUSTED_RULE}`;
+      const schema = {
+        type: 'object',
+        additionalProperties: false,
+        required: ['subject', 'body', 'why'],
+        properties: { subject: { type: 'string' }, body: { type: 'string' }, why: { type: 'string' } },
+      };
+      let out = await structured<{ subject: string; body: string; why: string }>(
         'Win-back message',
-        `Write a short, warm, specific email from a small shop owner to a regular customer who has not ordered in a while. Mention what they usually bought (topProducts). Never mention their spend, tracking or "data". No discounts unless asked; offer help instead. Under 90 words, sign off as the shop. "why" = one sentence for the owner on why this customer is worth contacting, using only the given figures. ${UNTRUSTED_RULE}`,
+        system,
         wrapUntrusted('customer', facts),
-        {
-          type: 'object',
-          additionalProperties: false,
-          required: ['subject', 'body', 'why'],
-          properties: { subject: { type: 'string' }, body: { type: 'string' }, why: { type: 'string' } },
-        },
+        schema,
         1500,
       );
+      const guard = { topProducts: c.topProducts ?? [], catalog };
+      let problems = checkDraft(`${out.subject}\n${out.body}`, guard);
+      let corrected = false;
+      if (problems.length) {
+        // One correction round, then give up honestly rather than show a note that failed its checks.
+        corrected = true;
+        out = await structured<{ subject: string; body: string; why: string }>(
+          'Win-back message (correction)',
+          system,
+          [
+            { type: 'text', text: wrapUntrusted('customer', facts) },
+            {
+              type: 'text',
+              text: `Your previous draft failed these checks: ${problems.join(' ')} Previous draft: ${JSON.stringify({ subject: out.subject, body: out.body })}. Rewrite it so every check passes.`,
+            },
+          ],
+          schema,
+          1500,
+        );
+        problems = checkDraft(`${out.subject}\n${out.body}`, guard);
+      }
+      if (problems.length)
+        return res.json({
+          fallback: true,
+          problems,
+          message: 'The AI draft failed its checks twice, so the plain template is shown instead.',
+          model: getModel(),
+        });
       res.json({
         ...out,
+        checks: { passed: true, corrected },
         factCheck: factCheck(out.why, [{ tool: 'win-back-list', data: facts }]),
         model: getModel(),
       });
@@ -248,6 +296,8 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
         columns: out.columns,
         rows: out.rows.length,
         preview: out.rows.slice(0, 8),
+        // The whole table, so the owner can review and correct it before anything is analysed.
+        table: out.rows.slice(0, 2000).map((r) => out.columns.map((_, i) => r[i] ?? null)),
         unreadable: out.unreadable,
         csv,
         model: getModel(),

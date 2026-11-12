@@ -4,8 +4,17 @@ import { useAuth } from '../auth';
 
 /**
  * Follow-up lists: the customers an owner chose to contact, what they did, and the last recheck. Signed-in users
- * keep lists in their own Supabase rows (row-level security: only they can read them); guests keep them in this
- * browser. Only customer IDs, amounts already shown on screen, statuses and notes are stored, never raw sales rows.
+ * keep lists in their own Supabase rows (row-level security: only they can read or change them); guests keep them
+ * in this browser. Stored: customer IDs (and emails when the export had them), amounts already shown on screen,
+ * statuses, contact days and notes. Never raw sales rows.
+ *
+ * Snapshot rules (see `applyEdit`, tested in tests/followup-rules.test.ts):
+ * - A list's date, data name, currency, rule, replay flag and each customer's selection figures are frozen when the
+ *   list is made. Later uploads and rechecks never rewrite them.
+ * - Only status, contact day and note change per customer, plus the latest recheck for the list.
+ * - Customer IDs are unique within a list (duplicates dropped when the list is made).
+ * - Setting a customer back from Contacted clears their contact day; the day can be corrected while Contacted.
+ * - A practice run (historical replay) stays marked as one forever and can't record contacts.
  */
 export type Status = 'todo' | 'contacted' | 'skipped';
 export interface FollowAccount {
@@ -21,41 +30,97 @@ export interface FollowAccount {
   contactedOn: string | null;
   note: string;
 }
+export interface CheckAccount {
+  customer: string;
+  found: boolean;
+  outcome: 'reordered' | 'no-order-seen' | 'not-found';
+  ordersAfter: number;
+  salesAfter: number;
+  firstOrderAfter: string | null;
+  contactedOn: string | null;
+  ordersAfterContact: number;
+  salesAfterContact: number;
+  sameDayOrders: number;
+}
 export interface FollowCheck {
   at: string;
+  /** The data the recheck read (its name), so a check is never confused with another shop's. */
+  checkedAgainst: string;
   dataEnd: string;
   daysObserved: number;
   matched: number;
   unmatched: string[];
   orderedAgain: number;
   salesAfter: number;
+  contacted: { customers: number; orderedAfter: number; salesAfter: number; sameDay: number };
+  notContacted: { customers: number; orderedSince: number };
+  coverage: {
+    from: string;
+    to: string;
+    longestGapDays: number;
+    gapFrom: string | null;
+    gapTo: string | null;
+    thin: boolean;
+  } | null;
   baseline: { customers: number; orderedAgain: number } | null;
-  accounts: {
-    customer: string;
-    found: boolean;
-    ordersAfter: number;
-    salesAfter: number;
-    firstOrderAfter: string | null;
-  }[];
+  accounts: CheckAccount[];
+}
+export interface FollowMeta {
+  /** The last day of data the list was read from. */
+  dataEnd: string;
+  currency: string;
+  rule: string;
+  total: number;
 }
 export interface FollowList {
   id: string;
   name: string;
-  /** The day the list was made: orders on or after it count as "ordered again". */
+  /** The day the list was made: orders on or after it count as "ordered since the list". */
   since: string;
   source: string;
   replay: boolean;
+  meta: FollowMeta;
   accounts: FollowAccount[];
   last_check: FollowCheck | null;
   created_at: string;
   updated_at: string;
 }
 
+/** Merge an edit into a saved list, keeping every frozen field from the original (see the rules above). */
+export function applyEdit(orig: FollowList, next: FollowList): FollowList {
+  const edits = new Map(next.accounts.map((a) => [a.customer, a]));
+  return {
+    ...orig,
+    name: next.name.slice(0, 120),
+    last_check: next.last_check,
+    accounts: orig.accounts.map((a) => {
+      const e = edits.get(a.customer);
+      if (!e) return a;
+      const status: Status = orig.replay && e.status === 'contacted' ? a.status : e.status;
+      const contactedOn =
+        status === 'contacted' ? (validDay(e.contactedOn) ? e.contactedOn : (a.contactedOn ?? null)) : null;
+      return { ...a, status, contactedOn, note: (e.note ?? '').slice(0, 500) };
+    }),
+  };
+}
+export const validDay = (d: string | null | undefined): d is string => {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === d;
+};
+/** Drop duplicate IDs, keeping the first. */
+export const uniqueAccounts = (a: FollowAccount[]) => {
+  const seen = new Set<string>();
+  return a.filter((x) => (seen.has(x.customer) ? false : (seen.add(x.customer), true)));
+};
+
 const KEY = 'blindspot.followups.v1';
 const readLocal = (): FollowList[] => {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-    return Array.isArray(v) ? v : [];
+    return Array.isArray(v)
+      ? v.map((l) => ({ meta: { dataEnd: '', currency: '', rule: '', total: 0 }, ...l }))
+      : [];
   } catch {
     return [];
   }
@@ -79,11 +144,14 @@ export function useFollowUps() {
   const [error, setError] = useState<string | null>(null);
   const where = user ? 'account' : 'browser';
   const pending = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const latest = useRef<FollowList[]>([]);
+  latest.current = lists;
 
   useEffect(() => {
     if (!ready) return;
     let live = true;
     setLoaded(false);
+    setError(null);
     (async () => {
       if (!user) {
         setLists(readLocal());
@@ -91,11 +159,11 @@ export function useFollowUps() {
         const { data, error } = await supabase
           .from('follow_up_lists')
           .select('*')
-          .order('updated_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(30);
         if (!live) return;
         if (error) setError('Could not load your saved lists. Changes stay on this page for now.');
-        setLists((data as FollowList[]) ?? []);
+        setLists(((data as FollowList[]) ?? []).map((l) => ({ ...l, meta: l.meta ?? ({} as FollowMeta) })));
       }
       if (live) setLoaded(true);
     })();
@@ -107,11 +175,7 @@ export function useFollowUps() {
   const persist = useCallback(
     (l: FollowList, immediate = false) => {
       if (!user) {
-        setLists((cur) => {
-          const next = [l, ...cur.filter((x) => x.id !== l.id)];
-          writeLocal(next);
-          return next;
-        });
+        writeLocal(latest.current.map((x) => (x.id === l.id ? l : x)));
         return;
       }
       // Notes are typed a letter at a time: save to the account once typing pauses.
@@ -122,6 +186,7 @@ export function useFollowUps() {
           since: l.since,
           source: l.source,
           replay: l.replay,
+          meta: l.meta,
           accounts: l.accounts,
           last_check: l.last_check,
           updated_at: l.updated_at,
@@ -138,8 +203,16 @@ export function useFollowUps() {
   const create = useCallback(
     (l: Omit<FollowList, 'id' | 'created_at' | 'updated_at' | 'last_check'>) => {
       const now = new Date().toISOString();
-      const full: FollowList = { ...l, id: uid(), created_at: now, updated_at: now, last_check: null };
-      setLists((cur) => [full, ...cur]);
+      const full: FollowList = {
+        ...l,
+        accounts: uniqueAccounts(l.accounts),
+        id: uid(),
+        created_at: now,
+        updated_at: now,
+        last_check: null,
+      };
+      latest.current = [full, ...latest.current];
+      setLists(latest.current);
       persist(full, true);
       return full;
     },
@@ -147,22 +220,30 @@ export function useFollowUps() {
   );
   const update = useCallback(
     (l: FollowList, immediate = false) => {
-      const next = { ...l, updated_at: new Date().toISOString() };
-      setLists((cur) => cur.map((x) => (x.id === l.id ? next : x)));
+      const orig = latest.current.find((x) => x.id === l.id);
+      if (!orig) return;
+      const next = { ...applyEdit(orig, l), updated_at: new Date().toISOString() };
+      latest.current = latest.current.map((x) => (x.id === l.id ? next : x));
+      setLists(latest.current);
       persist(next, immediate);
     },
     [persist],
   );
   const remove = useCallback(
     async (id: string) => {
-      setLists((cur) => {
-        const next = cur.filter((x) => x.id !== id);
-        if (!user) writeLocal(next);
-        return next;
-      });
-      if (user) await supabase.from('follow_up_lists').delete().eq('id', id);
+      latest.current = latest.current.filter((x) => x.id !== id);
+      setLists(latest.current);
+      if (!user) writeLocal(latest.current);
+      else await supabase.from('follow_up_lists').delete().eq('id', id);
     },
     [user?.id],
   );
-  return { lists, loaded, error, where, create, update, remove };
+  /** Guests only: forget every list stored in this browser (shared computers). */
+  const clearBrowser = useCallback(() => {
+    if (user) return;
+    latest.current = [];
+    setLists([]);
+    writeLocal([]);
+  }, [user?.id]);
+  return { lists, loaded, error, where, create, update, remove, clearBrowser };
 }

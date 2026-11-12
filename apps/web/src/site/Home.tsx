@@ -168,8 +168,8 @@ export default function Home() {
               className="mt-5 max-w-lg text-[15px] leading-relaxed text-[var(--muted)]"
             >
               They just stop ordering, while your sales total still looks fine. BlindSpot reads your sales
-              export, finds the valuable customers who have gone quiet, proves it down to the rows, and helps
-              you reach out and see who comes back.
+              export, finds the valuable customers who have gone quiet, shows the exact records behind each
+              one, and helps you reach out and see who orders again.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 12 }}

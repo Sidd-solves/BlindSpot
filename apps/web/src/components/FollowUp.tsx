@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   CalendarCheck,
   Check,
@@ -25,6 +25,7 @@ import { AiWinback } from './AiWinback';
 import { Card, CountUp, Dropdown } from './ui';
 import {
   useFollowUps,
+  type CheckAccount,
   type FollowAccount,
   type FollowCheck,
   type FollowList,
@@ -51,7 +52,14 @@ type WB = {
   }[];
   total: number;
 };
-type FU = FollowCheck & { ok: boolean; reason?: string; since: string; note: string };
+type FU = Omit<FollowCheck, 'at' | 'checkedAgainst'> & {
+  ok: boolean;
+  reason?: string;
+  since: string;
+  note: string;
+};
+const RULE =
+  'Top 10% by spend in the year before the last 90 days, 3+ orders that year, no order in the last 90 days.';
 
 const DAY = 86400000;
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
@@ -112,6 +120,8 @@ export function FollowUp() {
   const [checking, setChecking] = useState(false);
   const [checkErr, setCheckErr] = useState<string | null>(null);
   const [checkReason, setCheckReason] = useState<string | null>(null);
+  // A recheck against data with a different name waits for the owner to confirm it's the same shop.
+  const [confirmOther, setConfirmOther] = useState(false);
   const shopName = shop.trim() || 'our shop';
 
   const nowQ = useTool<WB>('win-back-list', { shopName: 'our shop' }, [version]);
@@ -124,13 +134,16 @@ export function FollowUp() {
   const active = fu.lists.find((l) => l.id === activeId) ?? null;
   // Pick the most recent list once lists load, so a returning owner lands on their work.
   useEffect(() => {
-    if (fu.loaded && activeId === null && fu.lists[0] && mode === 'now') setActiveId(fu.lists[0].id);
-  }, [fu.loaded]);
+    // Only lists made from the data loaded now: another shop's customer IDs mean nothing here.
+    const mine = fu.lists.find((l) => l.source === dataset?.name && !l.replay);
+    if (fu.loaded && activeId === null && mine && mode === 'now') setActiveId(mine.id);
+  }, [fu.loaded, dataset?.name]);
   // A new list (or mode) starts with nobody ticked: the owner decides, the tool doesn't pre-choose.
   useEffect(() => setPicked(new Set()), [wb]);
   useEffect(() => {
     setCheckReason(null);
     setCheckErr(null);
+    setConfirmOther(false);
   }, [activeId, version]);
 
   const step = !active ? (picked.size ? 1 : 0) : active.last_check ? 3 : 2;
@@ -160,6 +173,12 @@ export function FollowUp() {
       since,
       source: dataset?.name ?? 'Current data',
       replay: mode === 'replay',
+      meta: {
+        dataEnd: wb.asOf ?? '',
+        currency: dataset?.currency ?? '',
+        rule: RULE,
+        total: accounts.reduce((s, a) => s + a.spend, 0),
+      },
       accounts,
     });
     setActiveId(l.id);
@@ -175,16 +194,29 @@ export function FollowUp() {
       immediate,
     );
   };
+  const otherData = !!active && !!dataset?.name && dataset.name !== active.source;
   const recheck = async () => {
     if (!active) return;
+    if (active.replay && otherData)
+      return setCheckReason(
+        `This practice run was made from ${active.source}. Load that data on Data Sources to replay it; it can't be checked against ${dataset?.name}.`,
+      );
+    if (otherData && !confirmOther) return setConfirmOther(true);
     setChecking(true);
     setCheckErr(null);
     setCheckReason(null);
+    const contacts = Object.fromEntries(
+      active.accounts
+        .filter((a) => a.status === 'contacted' && a.contactedOn)
+        .map((a) => [a.customer, a.contactedOn!]),
+    );
     const r = await tool<FU>('follow-up-check', {
       since: active.since,
       customers: active.accounts.map((a) => a.customer),
+      contacts,
     });
     setChecking(false);
+    setConfirmOther(false);
     if (!r.ok || !r.data) return setCheckErr(r.error?.message ?? 'The recheck failed.');
     if (!r.data.ok) return setCheckReason(r.data.reason ?? 'Nothing to compare yet.');
     const d = r.data;
@@ -193,20 +225,18 @@ export function FollowUp() {
         ...active,
         last_check: {
           at: new Date().toISOString(),
+          checkedAgainst: dataset?.name ?? '',
           dataEnd: d.dataEnd,
           daysObserved: d.daysObserved,
           matched: d.matched,
           unmatched: d.unmatched,
           orderedAgain: d.orderedAgain,
           salesAfter: d.salesAfter,
+          contacted: d.contacted,
+          notContacted: d.notContacted,
+          coverage: d.coverage,
           baseline: d.baseline,
-          accounts: d.accounts.map((a) => ({
-            customer: a.customer,
-            found: a.found,
-            ordersAfter: a.ordersAfter,
-            salesAfter: a.salesAfter,
-            firstOrderAfter: a.firstOrderAfter,
-          })),
+          accounts: d.accounts,
         },
       },
       true,
@@ -228,10 +258,13 @@ export function FollowUp() {
         'Status',
         'Contacted on',
         'Note',
-        'Ordered again',
-        'Orders after',
-        'Sales after (returns excluded)',
-        'First order after',
+        'Outcome since list',
+        'Orders since list',
+        'Sales since list (returns excluded)',
+        'First order since list',
+        'Orders on later days than contact',
+        'Sales after contact',
+        'Orders on the contact day (timing unknown)',
       ],
       ...l.accounts.map((a) => {
         const o = out.get(a.customer);
@@ -247,10 +280,13 @@ export function FollowUp() {
           STATUS[a.status].label,
           a.contactedOn,
           a.note,
-          o ? (!o.found ? 'Not in newer data' : o.ordersAfter ? 'Yes' : 'No') : '',
+          o ? (!o.found ? 'ID not found in newer data' : o.ordersAfter ? 'Ordered' : 'No order seen') : '',
           o?.ordersAfter ?? '',
           o?.salesAfter ?? '',
           o?.firstOrderAfter ?? '',
+          o?.contactedOn ? o.ordersAfterContact : '',
+          o?.contactedOn ? o.salesAfterContact : '',
+          o?.contactedOn ? o.sameDayOrders : '',
         ];
       }),
     ]);
@@ -278,7 +314,11 @@ export function FollowUp() {
         </div>
         <Stepper step={step} />
         <div className="ml-auto flex items-center gap-1.5">
-          <SaveChip where={fu.where} error={fu.error} />
+          <SaveChip
+            where={fu.where}
+            error={fu.error}
+            onClear={fu.lists.length ? fu.clearBrowser : undefined}
+          />
           {fu.lists.length > 0 && (
             <Dropdown
               value={active ? [active.name] : []}
@@ -326,9 +366,10 @@ export function FollowUp() {
                   >
                     <History size={13} className="mt-0.5 flex-none" style={{ color: 'var(--sky)' }} />
                     <span>
-                      BlindSpot reads only the orders before <b>{nice(asOf)}</b>, as if that were today.
-                      Recheck then looks at the real orders that came after, so you can see how a list like
-                      this plays out.
+                      <b>Historical replay.</b> BlindSpot reads only the orders before <b>{nice(asOf)}</b>, as
+                      if that were today. Recheck then reads the shop’s real later orders. Nobody was
+                      contacted through BlindSpot back then, so this shows how the recheck works, not the
+                      effect of an email.
                     </span>
                   </div>
                 )}
@@ -461,14 +502,11 @@ export function FollowUp() {
                   <button className="btn !h-7 text-[11.5px]" onClick={() => setActiveId(null)}>
                     <Search size={12} /> New list
                   </button>
-                  {active.replay && (
-                    <span className="chip" style={{ '--c': 'var(--sky)' } as CSSProperties}>
-                      <History size={11} /> Practice run on past data
-                    </span>
-                  )}
                   <span className="text-[11.5px] text-[var(--muted)]">
-                    Made as of <b className="text-[var(--text)]">{nice(active.since)}</b> · {contacted} of{' '}
-                    {active.accounts.length} contacted
+                    {active.replay ? 'Replayed' : 'Made'} as of{' '}
+                    <b className="text-[var(--text)]">{nice(active.since)}</b> · {active.accounts.length}{' '}
+                    customers
+                    {active.replay ? '' : ` · ${contacted} contacted`} · from {active.source}
                   </span>
                   <input
                     value={shop}
@@ -479,6 +517,24 @@ export function FollowUp() {
                     aria-label="Shop name used in the messages"
                   />
                 </div>
+                {active.replay && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-2 flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11.5px]"
+                    style={{
+                      borderColor: 'color-mix(in srgb, var(--sky) 55%, transparent)',
+                      background: 'color-mix(in srgb, var(--sky) 12%, transparent)',
+                    }}
+                  >
+                    <History size={14} className="mt-0.5 flex-none" style={{ color: 'var(--sky)' }} />
+                    <span>
+                      <b>Historical replay: no outreach recorded.</b> These customers are from the shop’s
+                      past, and any later orders are its real records. This demonstrates the recheck, not the
+                      effect of contacting anyone, so contacts can’t be logged here.
+                    </span>
+                  </motion.div>
+                )}
                 <div className="max-h-[340px] overflow-y-auto pr-1">
                   {active.accounts.map((a, i) => {
                     const isOpen = open === a.customer;
@@ -500,7 +556,7 @@ export function FollowUp() {
                           >
                             <span className="flex items-center gap-1.5">
                               <span className="truncate font-semibold">{a.email ?? a.customer}</span>
-                              {out && <Outcome o={out} />}
+                              {out && <Outcome o={out} replay={active.replay} />}
                               <motion.span
                                 animate={{ rotate: isOpen ? 180 : 0 }}
                                 className="text-[var(--faint)]"
@@ -511,24 +567,43 @@ export function FollowUp() {
                             <span className="block truncate text-[11px] text-[var(--faint)]">
                               {usd(a.spend, true)} the year before · {a.orders} order days
                               {a.typicalGapDays ? ` · usually every ${a.typicalGapDays} days` : ''}
-                              {a.contactedOn ? ` · contacted ${nice(a.contactedOn)}` : ''}
+                              {a.note ? ' · has a note' : ''}
                             </span>
                           </button>
-                          <Seg
-                            small
-                            value={a.status}
-                            onChange={(s) =>
-                              setAcc(a, {
-                                status: s,
-                                contactedOn: s === 'contacted' ? (a.contactedOn ?? today()) : null,
-                              })
-                            }
-                            options={(Object.keys(STATUS) as Status[]).map((s) => ({
-                              id: s,
-                              label: STATUS[s].label,
-                              c: STATUS[s].c,
-                            }))}
-                          />
+                          {active.replay ? (
+                            <span
+                              className="chip !py-0 text-[10.5px]"
+                              style={{ '--c': 'var(--sky)' } as CSSProperties}
+                            >
+                              Replay
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              {a.status === 'contacted' && a.contactedOn && (
+                                <DayPicker
+                                  value={a.contactedOn}
+                                  min={active.since}
+                                  max={today()}
+                                  onChange={(d) => setAcc(a, { contactedOn: d })}
+                                />
+                              )}
+                              <Seg
+                                small
+                                value={a.status}
+                                onChange={(s) =>
+                                  setAcc(a, {
+                                    status: s,
+                                    contactedOn: s === 'contacted' ? (a.contactedOn ?? today()) : null,
+                                  })
+                                }
+                                options={(Object.keys(STATUS) as Status[]).map((s) => ({
+                                  id: s,
+                                  label: STATUS[s].label,
+                                  c: STATUS[s].c,
+                                }))}
+                              />
+                            </span>
+                          )}
                         </div>
                         <AnimatePresence initial={false}>
                           {isOpen && (
@@ -567,21 +642,19 @@ export function FollowUp() {
                   <button className="btn !h-7 text-[11.5px]" onClick={() => exportList(active)}>
                     <Download size={12} /> Download list
                   </button>
-                  <button
-                    className="btn !h-7 text-[11.5px]"
-                    onClick={() => {
-                      if (confirm(`Delete “${active.name}”? This removes its statuses and notes.`)) {
-                        void fu.remove(active.id);
-                        setActiveId(null);
-                      }
+                  <ConfirmButton
+                    label="Delete"
+                    confirmLabel="Delete list and notes"
+                    onConfirm={() => {
+                      void fu.remove(active.id);
+                      setActiveId(null);
                     }}
-                  >
-                    <Trash2 size={12} /> Delete
-                  </button>
+                  />
                   <span className="self-center text-[11px] text-[var(--faint)]">
                     Nothing is sent from BlindSpot. Copy a message into your own email.
                   </span>
                 </div>
+                <Funnel list={active} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -596,6 +669,8 @@ export function FollowUp() {
             reason={checkReason}
             onCheck={recheck}
             dataEnd={end}
+            otherData={otherData && confirmOther ? (dataset?.name ?? '') : null}
+            onCancelOther={() => setConfirmOther(false)}
           />
         </div>
       </div>
@@ -613,6 +688,8 @@ function Recheck({
   reason,
   onCheck,
   dataEnd,
+  otherData,
+  onCancelOther,
 }: {
   list: FollowList | null;
   checking: boolean;
@@ -620,6 +697,9 @@ function Recheck({
   reason: string | null;
   onCheck: () => void;
   dataEnd?: string;
+  /** Set when the loaded data has a different name than the list's: the owner must confirm it's the same shop. */
+  otherData: string | null;
+  onCancelOther: () => void;
 }) {
   const c = list?.last_check;
   const shell = (children: ReactNode) => (
@@ -638,10 +718,10 @@ function Recheck({
       <div className="space-y-2 text-[12px] text-[var(--muted)]">
         {[
           ['1', 'Tick the customers you’ll contact and start a list.'],
-          ['2', 'Mark who you reached and keep a note.'],
+          ['2', 'Mark who you reached. The contact day is saved, and you can correct it.'],
           [
             '3',
-            'Later, upload a newer export. BlindSpot matches the same customer IDs and shows who ordered again.',
+            'Later, upload a newer export from the same shop. BlindSpot matches the same customer IDs and shows who ordered after the list, and after each contact.',
           ],
         ].map(([n, t], i) => (
           <motion.div
@@ -664,33 +744,61 @@ function Recheck({
           </motion.div>
         ))}
         <div className="pt-1 text-[11px] text-[var(--faint)]">
-          Try <b>Practice on past data</b> to see the whole loop on real orders right now.
+          Try <b>Practice on past data</b> to see the recheck on a real shop’s history right now.
         </div>
       </div>,
     );
   const canCheck = list.replay || (dataEnd ? dataEnd >= list.since : false);
+  const cov = c?.coverage;
+  const lowMatch =
+    !!c && c.matched + c.unmatched.length > 0 && c.matched / (c.matched + c.unmatched.length) < 0.5;
   return shell(
     <>
       <div className="mb-2 text-[11.5px] text-[var(--muted)]">
-        Counts orders on or after <b className="text-[var(--text)]">{nice(list.since)}</b> in the data loaded
-        now
-        {dataEnd ? ` (through ${nice(dataEnd)})` : ''}, matched by exact customer ID.
+        Reads the whole loaded data (filters must be off){dataEnd ? `, through ${nice(dataEnd)}` : ''}, and
+        matches each exact customer ID from the list made {list.replay ? 'as of' : 'on'}{' '}
+        <b className="text-[var(--text)]">{nice(list.since)}</b>.
       </div>
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        onClick={onCheck}
-        disabled={checking}
-        className="btn btn-primary mb-2 !h-8 w-full justify-center text-[12px]"
-      >
-        {checking ? <Loader2 size={13} className="animate-spin" /> : <RefreshCcw size={13} />}
-        {checking
-          ? 'Matching customer IDs in the newer data…'
-          : list.replay
-            ? 'Check against the real orders that came next'
-            : c
-              ? 'Check again with the data loaded now'
-              : 'Check who ordered again'}
-      </motion.button>
+      <AnimatePresence>
+        {otherData && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-2 overflow-hidden rounded-lg border px-2.5 py-2 text-[11.5px]"
+            style={{ borderColor: 'color-mix(in srgb, var(--amber) 55%, transparent)' }}
+          >
+            This list was made from <b>{list.source}</b>; the loaded data is <b>{otherData}</b>. Customer IDs
+            only mean the same thing within one shop. Continue only if this is a newer export from the same
+            shop.
+            <div className="mt-1.5 flex gap-1.5">
+              <button className="btn btn-primary !h-7 text-[11.5px]" onClick={onCheck}>
+                Same shop, check it
+              </button>
+              <button className="btn !h-7 text-[11.5px]" onClick={onCancelOther}>
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {!otherData && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={onCheck}
+          disabled={checking}
+          className="btn btn-primary mb-2 !h-8 w-full justify-center text-[12px]"
+        >
+          {checking ? <Loader2 size={13} className="animate-spin" /> : <RefreshCcw size={13} />}
+          {checking
+            ? 'Matching customer IDs in the newer data…'
+            : list.replay
+              ? 'Check the shop’s real later orders'
+              : c
+                ? 'Check again with the data loaded now'
+                : 'Check who ordered again'}
+        </motion.button>
+      )}
       {!canCheck && !c && !reason && (
         <div className="mb-2 flex items-start gap-1.5 text-[11.5px] text-[var(--muted)]">
           <Upload size={12} className="mt-0.5 flex-none" />
@@ -704,9 +812,11 @@ function Recheck({
           style={{ borderColor: 'var(--line)' }}
         >
           {reason}{' '}
-          <a href="#/data" className="font-bold" style={{ color: 'var(--emerald)' }}>
-            Upload a newer export →
-          </a>
+          {/newer export|Data Sources/.test(reason) && (
+            <a href="#/data" className="font-bold" style={{ color: 'var(--emerald)' }}>
+              Upload a newer export →
+            </a>
+          )}
         </div>
       )}
       {err && (
@@ -728,21 +838,68 @@ function Recheck({
               <div className="min-w-0">
                 <div className="text-[12.5px]">
                   <b className="mono text-[18px]">{c.orderedAgain}</b>{' '}
-                  <span className="text-[var(--muted)]">of {c.matched} ordered again</span>
+                  <span className="text-[var(--muted)]">of {c.matched} ordered since the list</span>
                 </div>
                 <div className="text-[12px] text-[var(--muted)]">
-                  <b className="mono text-[var(--text)]">{usd(c.salesAfter)}</b> in real orders over{' '}
+                  <b className="mono text-[var(--text)]">{usd(c.salesAfter)}</b> in recorded orders over{' '}
                   {c.daysObserved} days (returns excluded)
                 </div>
               </div>
             </div>
+            {!list.replay && c.contacted && (
+              <div className="grid grid-cols-2 gap-1.5 text-[11.5px]">
+                <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--line)' }}>
+                  <div className="text-[var(--muted)]">After their contact day</div>
+                  <div>
+                    <b className="mono text-[14px]">{c.contacted.orderedAfter}</b> of {c.contacted.customers}{' '}
+                    contacted · {usd(c.contacted.salesAfter, true)}
+                  </div>
+                  {c.contacted.sameDay > 0 && (
+                    <div className="text-[10.5px] text-[var(--faint)]">
+                      +{c.contacted.sameDay} ordered on the contact day itself (timing unknown, not counted)
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--line)' }}>
+                  <div className="text-[var(--muted)]">Not contacted</div>
+                  <div>
+                    <b className="mono text-[14px]">{c.notContacted.orderedSince}</b> of{' '}
+                    {c.notContacted.customers} ordered since the list
+                  </div>
+                </div>
+              </div>
+            )}
+            {cov && (
+              <div
+                className="rounded-lg px-2.5 py-1.5 text-[11px]"
+                style={{
+                  background: cov.thin
+                    ? 'color-mix(in srgb, var(--amber) 14%, transparent)'
+                    : 'color-mix(in srgb, var(--emerald) 8%, transparent)',
+                }}
+              >
+                <b>Window read:</b> {nice(cov.from)} to {nice(cov.to)}.{' '}
+                {cov.thin ? (
+                  <>
+                    <b>No rows at all for {cov.longestGapDays} days</b> ({nice(cov.gapFrom!)} to{' '}
+                    {nice(cov.gapTo!)}). The export may be incomplete, so “no order seen” may only mean “not
+                    in this file”.
+                  </>
+                ) : (
+                  <>
+                    The shop has sales throughout (longest quiet stretch {cov.longestGapDays} day
+                    {cov.longestGapDays === 1 ? '' : 's'}). “No order seen” assumes this export covers all
+                    products and countries.
+                  </>
+                )}
+              </div>
+            )}
             {c.baseline && (
               <div className="text-[11.5px]">
-                <div className="mb-0.5 flex justify-between text-[var(--muted)]">
-                  <span>Other repeat customers, same window</span>
-                  <span className="mono">
-                    {pct(c.baseline.orderedAgain, c.baseline.customers)}% (
-                    {c.baseline.orderedAgain.toLocaleString()} of {c.baseline.customers.toLocaleString()})
+                <div className="mb-0.5 flex justify-between gap-2 text-[var(--muted)]">
+                  <span>Repeat customers not on this list (2+ orders before the list date)</span>
+                  <span className="mono flex-none">
+                    {pct(c.baseline.orderedAgain, c.baseline.customers)}% ordered
                   </span>
                 </div>
                 <div className="relative h-1.5 rounded-full bg-[var(--line)]">
@@ -755,24 +912,29 @@ function Recheck({
                   />
                 </div>
                 <div className="mt-0.5 text-[11px] text-[var(--faint)]">
-                  Context, not a control group: those customers weren’t on the list and weren’t contacted
-                  through it.
+                  {c.baseline.orderedAgain.toLocaleString()} of {c.baseline.customers.toLocaleString()}, same
+                  window. A different, broader group: context, not a comparison of outcomes.
                 </div>
               </div>
             )}
-            {c.unmatched.length > 0 && (
+            {(c.unmatched.length > 0 || lowMatch) && (
               <div
                 className="rounded-lg border px-2.5 py-1.5 text-[11.5px]"
-                style={{ borderColor: 'var(--line)' }}
+                style={{
+                  borderColor: lowMatch ? 'color-mix(in srgb, var(--amber) 55%, transparent)' : 'var(--line)',
+                }}
               >
-                <b>{c.unmatched.length} not found</b> in the newer data by exact ID:{' '}
-                {c.unmatched.slice(0, 4).join(', ')}
-                {c.unmatched.length > 4 ? '…' : ''}. They are left out of the counts above.
+                <b>
+                  {c.unmatched.length} ID{c.unmatched.length === 1 ? '' : 's'} not found
+                </b>{' '}
+                in the newer data: {c.unmatched.slice(0, 4).join(', ')}
+                {c.unmatched.length > 4 ? '…' : ''}. Left out of every count above.
+                {lowMatch && ' Most IDs are missing: check this export is from the same shop.'}
               </div>
             )}
             <div className="flex items-start gap-1.5 text-[11px] text-[var(--faint)]">
               <ShieldCheck size={12} className="mt-0.5 flex-none" style={{ color: 'var(--emerald)' }} />
-              Observed orders only. “Ordered again after contact” is not proof the contact caused it.
+              Recorded orders only. Ordering after a contact is not proof the contact caused it.
             </div>
           </motion.div>
         )}
@@ -781,22 +943,223 @@ function Recheck({
   );
 }
 
-function Outcome({ o }: { o: NonNullable<FollowList['last_check']>['accounts'][number] }) {
-  const [c, t] = !o.found
-    ? ['var(--muted)', 'Not in newer data']
+/** Where the list stands: listed → contacted → ordered after contact. A replay has no contacts, so it shows
+ * listed → found → ordered since the list. Read as a record, never as cause and effect. */
+function Funnel({ list }: { list: FollowList }) {
+  const n = list.accounts.length;
+  const contacted = list.accounts.filter((a) => a.status === 'contacted').length;
+  const c = list.last_check;
+  const stages = list.replay
+    ? [
+        { l: 'On the list', v: n, c: 'var(--violet)', t: `${n}` },
+        { l: 'Found later', v: c?.matched ?? 0, c: 'var(--sky)', t: c ? `${c.matched}` : '–' },
+        {
+          l: 'Ordered since',
+          v: c?.orderedAgain ?? 0,
+          c: 'var(--emerald)',
+          t: c ? `${c.orderedAgain}` : '–',
+        },
+      ]
+    : [
+        { l: 'On the list', v: n, c: 'var(--violet)', t: `${n}` },
+        { l: 'Contacted', v: contacted, c: 'var(--amber)', t: `${contacted}` },
+        {
+          l: 'Ordered after contact',
+          v: c?.contacted?.orderedAfter ?? 0,
+          c: 'var(--emerald)',
+          t: c?.contacted ? `${c.contacted.orderedAfter}` : '–',
+        },
+      ];
+  return (
+    <div className="mt-3 rounded-xl border p-2.5" style={{ borderColor: 'var(--line)' }}>
+      <div className="grid grid-cols-3 gap-2">
+        {stages.map((s, i) => (
+          <div key={s.l}>
+            <div className="flex items-baseline justify-between gap-1 text-[11px] text-[var(--muted)]">
+              <span className="truncate">{s.l}</span>
+              <span className="mono text-[13px] font-semibold text-[var(--text)]">{s.t}</span>
+            </div>
+            <div className="mt-1 h-2 rounded-full bg-[var(--line)]">
+              <motion.div
+                className="h-2 rounded-full"
+                style={{ background: s.c, boxShadow: `0 0 8px ${s.c}` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${n ? (s.v / n) * 100 : 0}%` }}
+                transition={{ duration: 0.8, delay: i * 0.12 }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 text-[11.5px] text-[var(--muted)]">
+        {list.replay
+          ? c
+            ? 'These are the shop’s real later orders. Nobody was contacted, so none of this is a result of outreach.'
+            : 'Press “Check the shop’s real later orders” to run the recheck on its history.'
+          : !c
+            ? contacted
+              ? 'Mark the rest as you go. When a newer export is in, press Recheck.'
+              : 'Mark each customer as you reach them. Statuses and notes save as you type.'
+            : 'Small, self-chosen groups: read this as a record of what happened, not a test of what works.'}
+      </div>
+    </div>
+  );
+}
+
+function Outcome({ o, replay }: { o: CheckAccount; replay: boolean }) {
+  const [c, t, Icon] = !o.found
+    ? (['var(--muted)', 'ID not found', X] as const)
     : o.ordersAfter
-      ? ['var(--emerald)', `Ordered again · ${usd(o.salesAfter, true)}`]
-      : ['var(--faint)', 'No order yet'];
+      ? (['var(--emerald)', `Ordered since · ${usd(o.salesAfter, true)}`, CalendarCheck] as const)
+      : (['var(--faint)', 'No order seen', CircleDashed] as const);
   return (
     <motion.span
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       className="chip flex-none !py-0 text-[10.5px]"
       style={{ '--c': c } as CSSProperties}
+      title={
+        !replay && o.contactedOn
+          ? `${o.ordersAfterContact} order(s) on later days than the contact${o.sameDayOrders ? `, ${o.sameDayOrders} on the contact day` : ''}`
+          : undefined
+      }
     >
-      {o.ordersAfter ? <CalendarCheck size={10} /> : o.found ? <CircleDashed size={10} /> : <X size={10} />}
+      <Icon size={10} />
       {t}
     </motion.span>
+  );
+}
+
+/** A themed day picker (no native date input): a month grid between `min` and `max`. */
+function DayPicker({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: string;
+  min: string;
+  max: string;
+  onChange: (d: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(value.slice(0, 7));
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const first = Date.parse(`${month}-01T00:00:00Z`);
+  const lead = new Date(first).getUTCDay();
+  const days = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
+  const shift = (n: number) => {
+    const d = new Date(first);
+    d.setUTCMonth(d.getUTCMonth() + n);
+    setMonth(d.toISOString().slice(0, 7));
+  };
+  return (
+    <div ref={ref} className="relative">
+      <button
+        className="btn !h-6 !px-1.5 text-[10.5px]"
+        onClick={() => {
+          setMonth(value.slice(0, 7));
+          setOpen(!open);
+        }}
+        title="Correct the contact day"
+        aria-label={`Contacted on ${nice(value)}. Change the day`}
+      >
+        <CalendarCheck size={11} style={{ color: 'var(--amber)' }} />
+        {nice(value).replace(/, \d{4}$/, '')}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            className="panel absolute right-0 z-50 mt-1 w-[214px] p-2"
+            style={{ background: 'var(--panel-solid)' }}
+          >
+            <div className="mb-1 flex items-center justify-between text-[11.5px] font-bold">
+              <button className="btn !h-6 !px-1.5" onClick={() => shift(-1)} aria-label="Previous month">
+                ‹
+              </button>
+              {new Date(first).toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              })}
+              <button className="btn !h-6 !px-1.5" onClick={() => shift(1)} aria-label="Next month">
+                ›
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5 text-center text-[10.5px]">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <span key={i} className="py-0.5 text-[var(--faint)]">
+                  {d}
+                </span>
+              ))}
+              {Array.from({ length: lead }).map((_, i) => (
+                <span key={`l${i}`} />
+              ))}
+              {Array.from({ length: days }).map((_, i) => {
+                const d = `${month}-${String(i + 1).padStart(2, '0')}`;
+                const off = d < min || d > max;
+                const on = d === value;
+                return (
+                  <button
+                    key={d}
+                    disabled={off}
+                    onClick={() => {
+                      onChange(d);
+                      setOpen(false);
+                    }}
+                    className="rounded py-1 font-semibold transition-colors disabled:opacity-25"
+                    style={{ background: on ? 'var(--amber)' : undefined, color: on ? '#1a1206' : undefined }}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** A destructive button that asks once in place (no browser dialog). */
+function ConfirmButton({
+  label,
+  confirmLabel,
+  onConfirm,
+}: {
+  label: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <motion.button
+      layout
+      whileTap={{ scale: 0.95 }}
+      className="btn !h-7 text-[11.5px]"
+      style={armed ? { borderColor: 'var(--rose)', color: 'var(--rose)' } : undefined}
+      onClick={() => (armed ? onConfirm() : setArmed(true))}
+    >
+      <Trash2 size={12} />
+      {armed ? confirmLabel : label}
+    </motion.button>
   );
 }
 
@@ -930,14 +1293,37 @@ function MiniRing({ value }: { value: number }) {
   );
 }
 
-function SaveChip({ where, error }: { where: string; error: string | null }) {
+function SaveChip({ where, error, onClear }: { where: string; error: string | null; onClear?: () => void }) {
+  const [armed, setArmed] = useState(false);
   return (
-    <span
-      className="chip !py-0.5 text-[10.5px]"
-      style={{ '--c': error ? 'var(--amber)' : 'var(--emerald)' } as CSSProperties}
-      title={error ?? undefined}
-    >
-      {error ? 'Not saved' : where === 'account' ? 'Saved to your account' : 'Saved in this browser'}
+    <span className="flex items-center gap-1">
+      <span
+        className="chip !py-0.5 text-[10.5px]"
+        style={{ '--c': error ? 'var(--amber)' : 'var(--emerald)' } as CSSProperties}
+        title={
+          error ??
+          (where === 'account'
+            ? 'Only you can read or change these lists.'
+            : 'Stored in this browser only. Anyone using this browser can see them. Log in to keep them private to your account.')
+        }
+      >
+        {error ? 'Not saved' : where === 'account' ? 'Saved to your account' : 'Saved in this browser'}
+      </span>
+      {where === 'browser' && onClear && (
+        <button
+          className="text-[10.5px] font-bold underline-offset-2 hover:underline"
+          style={{ color: armed ? 'var(--rose)' : 'var(--faint)' }}
+          onClick={() => {
+            if (armed) {
+              onClear();
+              setArmed(false);
+            } else setArmed(true);
+          }}
+          onBlur={() => setArmed(false)}
+        >
+          {armed ? 'Clear all lists here?' : 'Clear'}
+        </button>
+      )}
     </span>
   );
 }

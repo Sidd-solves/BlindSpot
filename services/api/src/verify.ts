@@ -146,3 +146,39 @@ export function factCheck(answer: string, evidence: { tool: string; data?: unkno
     unverified: count('unverified'),
   };
 }
+
+/**
+ * Checks an AI-written outreach note before an owner sees it. A note to a customer must not quote money, order
+ * counts or exact periods (those are the owner's private analysis, and easy to get wrong), must not offer discounts
+ * nobody asked for, must not tell the customer they are leaving or lost, and may only name products this customer
+ * actually bought. Returns the problems found, in plain words; an empty list means the note passed.
+ */
+export function checkDraft(
+  text: string,
+  facts: { topProducts: string[]; catalog?: string[]; allowDiscount?: boolean },
+): string[] {
+  const t = text.toLowerCase();
+  const problems: string[] = [];
+  if (/[£$€¥]\s?\d|\d[\d,.]*\s?(?:gbp|usd|eur|pounds?|dollars?|euros?)\b/i.test(text))
+    problems.push('It quotes an amount of money.');
+  if (/\b\d+\s*(?:orders?|purchases?|times)\b/i.test(text)) problems.push('It quotes an order count.');
+  if (/\b\d+\s*(?:days?|weeks?|months?|years?)\b|\blast (?:week|month|year)\b|\byesterday\b/i.test(text))
+    problems.push('It names an exact time period.');
+  if (
+    !facts.allowDiscount &&
+    /\b(?:discount|coupon|promo(?:tion)? code|voucher|\d+\s?% off|free shipping|on us)\b/i.test(text)
+  )
+    problems.push('It offers a discount nobody asked for.');
+  if (
+    /\b(?:you(?:'ve| have)? (?:left|stopped|abandoned|quit)|we(?:'ve| have) lost you|you(?:'re| are) leaving|you no longer|stopped (?:buying|ordering|shopping) with us)\b/i.test(
+      text,
+    )
+  )
+    problems.push('It tells the customer they have left or stopped buying.');
+  const own = new Set(facts.topProducts.map((p) => p.toLowerCase()));
+  const named = (facts.catalog ?? []).filter(
+    (p) => p.length >= 6 && !own.has(p.toLowerCase()) && t.includes(p.toLowerCase()),
+  );
+  if (named.length) problems.push(`It names a product this customer didn't usually buy (${named[0]}).`);
+  return problems;
+}

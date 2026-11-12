@@ -11,6 +11,12 @@ interface Draft {
   body: string;
   why: string;
   factCheck: FactCheckResult;
+  checks?: { passed: boolean; corrected: boolean };
+}
+interface Fallback {
+  fallback: true;
+  problems: string[];
+  message: string;
 }
 
 /** The plain draft, plus a "Write with AI" version personalised from what this customer bought. Nothing is sent. */
@@ -36,7 +42,15 @@ export function AiWinback({
     setBusy(true);
     setErr(null);
     try {
-      setD(await post<Draft>('/api/ai/winback', { customer, shopName, ...(asOf ? { asOf } : {}) }));
+      const r = await post<Draft | Fallback>('/api/ai/winback', {
+        customer,
+        shopName,
+        ...(asOf ? { asOf } : {}),
+      });
+      if ('fallback' in r) {
+        setD(null);
+        setErr(`${r.message} What failed: ${r.problems.join(' ')}`);
+      } else setD(r);
     } catch (e: any) {
       setErr(e?.message ?? 'Writing failed.');
     }
@@ -61,6 +75,15 @@ export function AiWinback({
               style={{ color: 'var(--fuchsia)' }}
             >
               <Sparkles size={11} /> Written by AI · {d.subject}
+              {d.checks?.passed && (
+                <span
+                  className="ml-1 font-semibold"
+                  style={{ color: 'var(--emerald)' }}
+                  title="Checked: no money, order counts or dates; no discounts; doesn't say they left; only products they bought."
+                >
+                  · passed checks{d.checks.corrected ? ' after one rewrite' : ''}
+                </span>
+              )}
             </div>
           )}
           <pre className="whitespace-pre-wrap font-sans text-[12px] leading-snug">
