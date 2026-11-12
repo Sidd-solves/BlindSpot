@@ -17,6 +17,38 @@
 
 **Evidence.** On a public UK retailer's records (UCI Online Retail II), 10 quiet top accounts had spent £93,531.25 the year before, matched to the penny by a separate Python script. Replayed on that shop's past, flagged customers stayed away 32–36% of the time against 3–8% for other top regulars (Fisher p < 0.005 in both replays). Most came back: it's who to review first, not a list of losses.
 
+## Full Devpost story (for events using the standard sections)
+
+### Inspiration
+I kept seeing the same story in small online shops. Sales looked fine, while a loyal wholesale buyer had quietly stopped ordering months earlier. Nobody noticed, because every chart showed the total. Big retailers pay analysts to watch for this. A small shop has an export it can't read. So I set out to build the analyst a small shop can't afford, with one rule: every number must trace back to rows you can check.
+
+### What it does
+BlindSpot reads a shop's sales export as it is (Shopify, Etsy, Square, a spreadsheet, a PDF report, or a photo of a table) and cleans it. Then it runs a loop:
+- **Find:** the top customers who have gone quiet, with each one's usual order rhythm and share of the total.
+- **Decide:** who to contact, after opening the exact rows behind every amount.
+- **Act:** a short note drafted by Claude for each, checked before you see it. You send it and log the day.
+- **Recheck:** upload a newer export. Matching by customer ID, it shows who ordered after the list and after each contact, and flags gaps in the data.
+
+### How I built it
+- TypeScript throughout: React, Vite, Tailwind, Framer Motion and WebGL on the front end; Node and Express on the server.
+- Supabase for accounts and saved lists, with row-level security.
+- The analysis engine is plain code with its own statistics (Welch and Fisher tests, Benjamini–Hochberg), kept separate from the AI.
+- Claude (Sonnet 5.5) uses 21 read-only tools. Its numbers are matched against the tool results, and its outreach notes are checked for amounts, dates, discounts and product names.
+
+### Challenges
+- **Proving the rule.** I replayed it on the shop's own past using only earlier data. Flagged customers stayed away 32–36% of the time, against 3–8% for other top customers. Most still came back, so I present it as a list to review, not a list of losses.
+- **Measuring follow-up honestly.** An order counts as "after contact" only if it falls on a later day than that customer's own contact.
+
+### Accomplishments
+- A separate Python script reproduces the app's 10 accounts, their orders, gaps and the £93,531.25 total, to the penny.
+- 283 automated tests, plus browser tests, including one proving that switching accounts never shows another account's lists.
+
+### What I learned
+Evidence beats a dramatic number. Showing "one account is 41% of this total" and "most came back" makes people trust the rest.
+
+### What's next
+Test it with a real shop owner on their own export, and record what they agree and disagree with. After that, live connectors for WooCommerce and Square.
+
 ## Built with
 
 Claude (Anthropic API, Sonnet 5.5), TypeScript, React, Vite, Tailwind CSS, Framer Motion, WebGL, Node.js, Express, Supabase (auth, Postgres with row-level security), Zod, Model Context Protocol, pdf.js, SheetJS, Papa Parse, Vitest, Playwright, Docker, Render.
