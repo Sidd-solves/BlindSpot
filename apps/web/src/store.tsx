@@ -67,6 +67,41 @@ export interface Action {
   benefitToEffort: number | null;
   evidence: any;
 }
+/**
+ * A failed read sends back only part of the report (whatever was learned before it stopped). Fill every section the
+ * review screen reads with an empty default, so an odd file (handwritten notes, a scan, a letter) shows a clear
+ * message instead of crashing the page.
+ */
+export function completeReport(r: any): IngestReport | null {
+  if (!r || typeof r !== 'object') return null;
+  const base: IngestReport = {
+    files: [],
+    format: '',
+    platform: null,
+    columns: [],
+    roles: {},
+    confidence: {},
+    samples: {},
+    dateOrder: null,
+    dateOrderAssumed: false,
+    currency: null,
+    currencySource: '',
+    rowsRead: 0,
+    rowsUsed: 0,
+    ordersFound: 0,
+    issues: [],
+    unlocks: [],
+    dateRange: null,
+    prep: null,
+  };
+  // Keep what arrived, but never let a section the screen reads be missing or null.
+  const out: any = { ...base };
+  for (const [k, v] of Object.entries(r)) if (v !== null && v !== undefined) out[k] = v;
+  for (const k of ['dateOrder', 'currency', 'dateRange', 'prep', 'platform'] as const)
+    if (r[k] === null) out[k] = null;
+  return out as IngestReport;
+}
+
 export interface DatasetMeta {
   name: string;
   source: string;
@@ -304,12 +339,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             dateOrder,
             currency,
             busy: null,
-            report: j.report ?? null,
+            report: completeReport(j.report),
             error: j.error?.message ?? "This file couldn't be read.",
           });
-          return j.report?.columns ? ('fixable' as const) : ('failed' as const);
+          return j.report?.columns?.length ? ('fixable' as const) : ('failed' as const);
         }
-        setUpload({ files, overrides, dateOrder, currency, busy: null, report: j.report, error: null });
+        setUpload({
+          files,
+          overrides,
+          dateOrder,
+          currency,
+          busy: null,
+          report: completeReport(j.report),
+          error: null,
+        });
         await refresh();
         return 'ok' as const;
       } catch {

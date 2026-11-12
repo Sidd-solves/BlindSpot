@@ -85,6 +85,26 @@ export function ingest(
   opts: IngestOptions = {},
 ): { dataset: Dataset; report: IngestReport } {
   if (!files.length) throw new IngestError('EMPTY', 'No file was received.');
+  for (const f of files) {
+    const head = f.text
+      .replace(/^\uFEFF/, '')
+      .trimStart()
+      .slice(0, 200)
+      .toLowerCase();
+    const kind =
+      /\.json$/i.test(f.name) || /^[[{]/.test(head)
+        ? 'a JSON data file'
+        : /\.html?$/i.test(f.name) || head.startsWith('<!doctype html') || head.startsWith('<html')
+          ? 'a web page'
+          : /\.xml$/i.test(f.name) || head.startsWith('<?xml')
+            ? 'an XML file'
+            : null;
+    if (kind)
+      throw new IngestError(
+        'NOT_A_TABLE',
+        `${f.name} is ${kind}, not a table of sales. Export your orders as CSV or Excel (in Shopify: Orders → Export), then upload that.`,
+      );
+  }
   const maxRows = opts.maxRows ?? 1_200_000;
   const primary = parseFile(files[0], opts.overrides, opts.maxRows);
   const { table, profile, roles } = primary;
@@ -296,6 +316,19 @@ export function ingest(
     });
     if (recs.length > maxRows) recs.length = maxRows;
   }
+  // Measured before the rows are released: how many columns hold mostly numbers, and how many rows there were.
+  const numericCols = table.headers.filter((_, j) => {
+    const vals = table.rows
+      .slice(0, 500)
+      .map((r) => r[j])
+      .filter((v) => v && v.trim());
+    const nums = vals.map((v) => parseNumber(v)).filter((n): n is number => n !== null);
+    // 1, 2, 4, 5… (whole numbers that only go up) is a page or row number, not money.
+    const counter =
+      nums.length >= 2 && nums.every((n, k) => Number.isInteger(n) && (k === 0 || n > nums[k - 1]));
+    return vals.length >= 1 && nums.length / vals.length >= 0.6 && !counter;
+  }).length;
+  const rowCount = table.rows.length;
   table.rows = []; // records hold everything needed from here on
 
   // ---- how to read numbers and dates (decided per column from all values)
@@ -402,6 +435,20 @@ export function ingest(
   const hasPrice = !!roles.price,
     hasAmount = !!roles.amount,
     hasQty = !!roles.quantity;
+  // A file that can't hold sales at all (notes, a letter, a list of names): say so plainly instead of asking the
+  // owner to map columns that don't exist. Only judged with a few rows, so a tiny real export isn't misread.
+  const name = files[0]?.name ?? 'the file';
+  if (!hasPrice && !hasAmount && numericCols === 0 && rowCount >= 2) {
+    const anyRole = (['date', 'product', 'customer', 'order'] as Role[]).some((r) => roles[r]);
+    throw new IngestError(
+      anyRole ? 'NO_AMOUNTS' : 'NOT_SALES',
+      anyRole
+        ? `${name} has no column of numbers, so there are no sale amounts to analyse. BlindSpot needs each sale's value (a column like Total, Amount or Price). Add a file that has the amounts, or export the full orders report from your shop.`
+        : `This doesn't look like a sales table: ${name} has no dates, amounts, products or customers BlindSpot can find. Upload an order or sales export (CSV, Excel, or a PDF report with a table), or try the sample shop.`,
+      // With some sales columns found, keep what was read, so the owner can add a file that has the amounts.
+      anyRole ? partialReport(primary, issues, fileInfo) : undefined,
+    );
+  }
   if (!hasPrice && !hasAmount)
     throw new IngestError(
       'NO_MONEY',
@@ -934,9 +981,10 @@ export function partialReport(
   return {
     files,
     format: files[0]?.format,
-    columns: p.table.headers,
-    roles: p.roles,
-    confidence: p.confidence,
+    columns: p.table?.headers ?? [],
+    roles: p.roles ?? {},
+    confidence: p.confidence ?? {},
+    samples: {},
     issues,
     platform: p.profile?.id ?? null,
   };

@@ -23,9 +23,47 @@ export const isDataCell = (c: string) =>
 export const TOTAL_RE =
   /^(grand\s*|sub\s*|overall\s*)?(totals?|summe|gesamt(summe)?|gesamtbetrag|totale|totaal|somme|suma|sum|total general|total geral|importe total|totalt|yhteensa|razem|celkem)\s*:?\s*$|^total\s+(sales|revenue|amount|for .*)$/i;
 
+/**
+ * The separator that splits the header and the first lines into the same number of columns (2+). Decides cases the
+ * library's guess gets wrong, like "Date;Total" with amounts written "12,50": commas appear in every data line but not
+ * in the header, semicolons appear once in every line. Returns null when no separator is clearly consistent.
+ */
+export function guessDelimiter(text: string): string | null {
+  const lines = text
+    .slice(0, 20000)
+    .split(/\r?\n/)
+    .filter((l) => l.trim())
+    .slice(0, 30);
+  if (lines.length < 2) return null;
+  const count = (l: string, d: string) => {
+    let n = 0,
+      q = false;
+    for (const ch of l) {
+      if (ch === '"') q = !q;
+      else if (ch === d && !q) n++;
+    }
+    return n;
+  };
+  const scored = [',', ';', '\t', '|'].map((d) => {
+    const counts = lines.map((l) => count(l, d));
+    const head = counts[0];
+    const same = counts.filter((c) => c === head).length / counts.length;
+    return { d, head, same };
+  });
+  const ok = scored
+    .filter((x) => x.head >= 1 && x.same >= 0.9)
+    .sort((a, b) => b.same - a.same || b.head - a.head);
+  if (!ok.length) return null;
+  // Two consistent candidates (e.g. "a,b;c" everywhere): too close to call, let the library decide.
+  if (ok.length > 1 && ok[1].same === ok[0].same && ok[1].head === ok[0].head) return null;
+  return ok[0].d;
+}
+
 export function readTable(text: string, limit?: number): Table {
   const clean = text.replace(/^﻿/, '').replace(/\u0000/g, '');
+  const guess = guessDelimiter(clean);
   const parsed = Papa.parse(clean, {
+    ...(guess ? { delimiter: guess } : {}),
     delimitersToGuess: [',', ';', '\t', '|'],
     skipEmptyLines: false,
     ...(limit ? { preview: limit + 200 } : {}),
