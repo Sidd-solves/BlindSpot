@@ -65,7 +65,7 @@ import { CurrencyPicker } from './components/Currency';
 import { ReadReview } from './components/ReadReview';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import SiteLayout, { type SiteId } from './site/SiteLayout';
-import SiteHome from './site/Home';
+import SiteHome from './site/story/Story';
 import { Tour, startTour } from './components/Tour';
 const SiteHow = lazy(() => import('./site/How'));
 const SiteFeatures = lazy(() => import('./site/Features'));

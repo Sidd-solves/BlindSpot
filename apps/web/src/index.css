@@ -587,3 +587,19 @@ input[type='range']::-moz-range-thumb {
     animation: none;
   }
 }
+
+/* ---- Home story: the scroll journey's overlay ---- */
+.story-ui { color: var(--text); }
+.story-rise { animation: story-rise .9s cubic-bezier(.2,.8,.2,1) both; animation-delay: .1s; }
+@keyframes story-rise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.story-hint::after { content: ''; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: linear-gradient(transparent, #fff); animation: story-drip 1.6s cubic-bezier(.6,0,.3,1) infinite; }
+@keyframes story-drip { to { top: 110%; } }
+.story-glass { background: color-mix(in srgb, #0b0d1c 62%, transparent); border: 1px solid rgba(255,255,255,.09); backdrop-filter: blur(14px); box-shadow: 0 20px 50px -25px rgba(0,0,0,.9); }
+.story-chip { color: #fff; background: color-mix(in srgb, var(--c) 16%, rgba(6,7,16,.55)); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 24px -4px color-mix(in srgb, var(--c) 60%, transparent); backdrop-filter: blur(8px); }
+.story-grad { background-image: linear-gradient(90deg, #a78bfa, #22d3ee 40%, #fbbf24 75%, #e879f9); background-size: 200% 100%; animation: story-shimmer 6s linear infinite; }
+@keyframes story-shimmer { to { background-position: -200% 0; } }
+.story-dot i { display: block; width: 6px; height: 6px; border-radius: 99px; background: rgba(255,255,255,.28); transition: all .35s cubic-bezier(.2,.8,.2,1); }
+.story-dot span { color: var(--muted); }
+.story-dot[data-on='true'] i { height: 22px; background: linear-gradient(var(--violet), var(--cyan)); box-shadow: 0 0 12px var(--violet); }
+.story-dot[data-on='true'] span { opacity: 1; color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .story-rise, .story-hint::after, .story-grad { animation-duration: .01s; animation-iteration-count: 1; } }
