@@ -29,7 +29,16 @@ export interface FollowAccount {
   status: Status;
   contactedOn: string | null;
   note: string;
+  /** Why the owner chose not to contact this customer (their judgement overrides the rule; kept as evidence). */
+  skipReason?: SkipReason | null;
 }
+export type SkipReason = 'seasonal' | 'closed' | 'switched' | 'other';
+export const SKIP_REASONS: { id: SkipReason; label: string }[] = [
+  { id: 'seasonal', label: 'Seasonal buyer' },
+  { id: 'closed', label: 'Closed or moved' },
+  { id: 'switched', label: 'Buys elsewhere now' },
+  { id: 'other', label: 'Other reason' },
+];
 export interface CheckAccount {
   customer: string;
   found: boolean;
@@ -97,7 +106,8 @@ export function applyEdit(orig: FollowList, next: FollowList): FollowList {
     const status: Status = orig.replay && e.status === 'contacted' ? a.status : e.status;
     const contactedOn =
       status === 'contacted' ? (validDay(e.contactedOn) ? e.contactedOn : (a.contactedOn ?? null)) : null;
-    return { ...a, status, contactedOn, note: (e.note ?? '').slice(0, 500) };
+    const skipReason = status === 'skipped' ? (e.skipReason ?? a.skipReason ?? null) : null;
+    return { ...a, status, contactedOn, skipReason, note: (e.note ?? '').slice(0, 500) };
   });
   // A recheck answers for the contacts as they were. If who was contacted, or when, changes, it's out of date.
   const moved = accounts.some(

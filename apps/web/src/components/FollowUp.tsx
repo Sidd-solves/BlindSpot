@@ -28,6 +28,7 @@ import {
   assignShop,
   assignedShop,
   useFollowUps,
+  SKIP_REASONS,
   type CheckAccount,
   type FollowAccount,
   type FollowCheck,
@@ -613,6 +614,9 @@ export function FollowUp() {
                             <span className="block truncate text-[11px] text-[var(--faint)]">
                               {usd(a.spend, true)} the year before · {a.orders} orders
                               {a.typicalGapDays ? ` · usually every ${a.typicalGapDays} days` : ''}
+                              {a.status === 'skipped' && a.skipReason
+                                ? ` · skipped: ${SKIP_REASONS.find((r) => r.id === a.skipReason)?.label.toLowerCase()}`
+                                : ''}
                               {a.note ? ' · has a note' : ''}
                             </span>
                           </button>
@@ -636,12 +640,13 @@ export function FollowUp() {
                               <Seg
                                 small
                                 value={a.status}
-                                onChange={(s) =>
+                                onChange={(s) => {
                                   setAcc(a, {
                                     status: s,
                                     contactedOn: s === 'contacted' ? (a.contactedOn ?? today()) : null,
-                                  })
-                                }
+                                  });
+                                  if (s === 'skipped') setOpen(a.customer);
+                                }}
                                 options={(Object.keys(STATUS) as Status[]).map((s) => ({
                                   id: s,
                                   label: STATUS[s].label,
@@ -663,6 +668,28 @@ export function FollowUp() {
                                 className="tint mb-2 space-y-2 rounded-lg p-2.5"
                                 style={{ '--c': 'var(--violet)' } as CSSProperties}
                               >
+                                {a.status === 'skipped' && (
+                                  <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                                    <span className="text-[var(--muted)]">Why not contact them?</span>
+                                    {SKIP_REASONS.map((r) => (
+                                      <button
+                                        key={r.id}
+                                        onClick={() =>
+                                          setAcc(a, { skipReason: a.skipReason === r.id ? null : r.id })
+                                        }
+                                        className="chip !py-0.5 text-[10.5px]"
+                                        style={
+                                          {
+                                            '--c': a.skipReason === r.id ? 'var(--amber)' : 'var(--faint)',
+                                          } as CSSProperties
+                                        }
+                                        aria-pressed={a.skipReason === r.id}
+                                      >
+                                        {r.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                                 <textarea
                                   value={a.note}
                                   onChange={(e) => setAcc(a, { note: e.target.value.slice(0, 500) }, false)}
@@ -821,8 +848,10 @@ function Recheck({
             className="mb-2 overflow-hidden rounded-lg border px-2.5 py-2 text-[11.5px]"
             style={{ borderColor: 'color-mix(in srgb, var(--amber) 55%, transparent)' }}
           >
-            Is <b>{confirmShop.data}</b> an export from <b>{confirmShop.shop}</b>? Customer IDs only mean the
-            same thing within one shop, and a file name can’t prove which shop a file came from.
+            <div className="mb-0.5 text-[12.5px] font-extrabold">Which shop is this export from?</div>
+            Confirm that <b>{confirmShop.data}</b> is an export from <b>{confirmShop.shop}</b>. This is your
+            declaration: customer IDs only mean the same thing within one shop, and a file name can’t prove
+            where a file came from.
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <button className="btn btn-primary !h-7 text-[11.5px]" onClick={onConfirmShop}>
                 Yes, it’s from {confirmShop.shop}
@@ -891,7 +920,7 @@ function Recheck({
                 <div className="text-[12.5px]">
                   <b className="mono text-[18px]">{c.orderedAgain}</b>{' '}
                   <span className="text-[var(--muted)]">
-                    of {list.accounts.length} listed had a recorded order since the list
+                    of {list.accounts.length} listed had a recorded later order
                   </span>
                 </div>
                 <div className="text-[11.5px] text-[var(--muted)]">
@@ -902,7 +931,7 @@ function Recheck({
                   {c.coverage?.thin ? ' · coverage has gaps' : ''}
                 </div>
                 <div className="text-[12px] text-[var(--muted)]">
-                  <b className="mono text-[var(--text)]">{usd(c.salesAfter)}</b> in recorded orders over{' '}
+                  <b className="mono text-[var(--text)]">{usd(c.salesAfter)}</b> in recorded later orders over{' '}
                   {c.daysObserved} days (returns excluded)
                 </div>
               </div>
@@ -1227,63 +1256,103 @@ function ConfirmButton({
 /** The exact quiet-customer rule, replayed on this shop's own past: who stayed away the next 180 days. */
 function RuleBacktest({ bt }: { bt: NonNullable<WB['backtest']> }) {
   const fmtP = (p: number) => (p < 0.001 ? 'p < 0.001' : `p = ${p.toFixed(3)}`);
+  // Open the first time; after that it stays out of the way (one click to reopen), so owners get to the list.
+  const [open, setOpen] = useState(() => {
+    try {
+      return !localStorage.getItem('blindspot.rule-test-seen');
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('blindspot.rule-test-seen', '1');
+    } catch {
+      /* fine: it just opens again next time */
+    }
+  }, []);
+  const rng = (xs: number[]) => {
+    const lo = Math.min(...xs),
+      hi = Math.max(...xs);
+    return lo === hi ? `${lo}%` : `${lo}–${hi}%`;
+  };
+  const summary = `${rng(bt.replays.map((r) => pct(r.flaggedStayedAway, r.flagged)))} of flagged vs ${rng(bt.replays.map((r) => pct(r.othersStayedAway, r.others)))} of other top customers stayed away`;
   return (
     <div className="mb-1 rounded-lg border px-2.5 py-2" style={{ borderColor: 'var(--line)' }}>
-      <div className="mb-1 flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--text)]">
+      <button
+        className="flex w-full items-center gap-1.5 text-left text-[11.5px] font-bold text-[var(--text)]"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
         <History size={12} style={{ color: 'var(--violet)' }} /> This rule, tested on this shop’s past
-      </div>
-      {bt.replays.map((r, i) => {
-        const f = pct(r.flaggedStayedAway, r.flagged),
-          o = pct(r.othersStayedAway, r.others);
-        return (
-          <div key={r.asOf} className="mb-1.5 last:mb-0">
-            <div className="flex justify-between text-[11px]">
-              <span>
-                As of <b className="text-[var(--text)]">{nice(r.asOf)}</b> · no order in the next{' '}
-                {r.windowDays} days
-              </span>
-              <span className="mono">{fmtP(r.p)}</span>
+        {!open && <span className="ml-1 truncate font-normal text-[var(--muted)]">· {summary}</span>}
+        <motion.span className="ml-auto text-[var(--faint)]" animate={{ rotate: open ? 180 : 0 }}>
+          <ChevronDown size={12} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden pt-1"
+          >
+            {bt.replays.map((r, i) => {
+              const f = pct(r.flaggedStayedAway, r.flagged),
+                o = pct(r.othersStayedAway, r.others);
+              return (
+                <div key={r.asOf} className="mb-1.5 last:mb-0">
+                  <div className="flex justify-between text-[11px]">
+                    <span>
+                      As of <b className="text-[var(--text)]">{nice(r.asOf)}</b> · no order in the next{' '}
+                      {r.windowDays} days
+                    </span>
+                    <span className="mono">{fmtP(r.p)}</span>
+                  </div>
+                  {[
+                    {
+                      l: `Flagged (${r.flagged})`,
+                      v: f,
+                      t: `${r.flaggedStayedAway} of ${r.flagged}`,
+                      c: 'var(--amber)',
+                    },
+                    {
+                      l: `Other top customers (${r.others})`,
+                      v: o,
+                      t: `${r.othersStayedAway} of ${r.others}`,
+                      c: 'var(--emerald)',
+                    },
+                  ].map((x, k) => (
+                    <div
+                      key={x.l}
+                      className="mt-0.5 grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_88px] items-center gap-2 text-[10.5px]"
+                    >
+                      <span className="truncate">{x.l}</span>
+                      <span className="h-1.5 rounded-full bg-[var(--line)]">
+                        <motion.span
+                          className="block h-1.5 rounded-full"
+                          style={{ background: x.c }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${x.v}%` }}
+                          transition={{ duration: 0.8, delay: 0.1 + i * 0.15 + k * 0.08 }}
+                        />
+                      </span>
+                      <span className="mono text-right">
+                        {x.v}% · {x.t}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            <div className="mt-1 text-[10.5px] text-[var(--faint)]">
+              Same rule as this list, using only earlier orders each time. One-sided Fisher exact test. The
+              two windows overlap, so they’re two looks at one shop. Most flagged customers still came back.
             </div>
-            {[
-              {
-                l: `Flagged (${r.flagged})`,
-                v: f,
-                t: `${r.flaggedStayedAway} of ${r.flagged}`,
-                c: 'var(--amber)',
-              },
-              {
-                l: `Other top customers (${r.others})`,
-                v: o,
-                t: `${r.othersStayedAway} of ${r.others}`,
-                c: 'var(--emerald)',
-              },
-            ].map((x, k) => (
-              <div
-                key={x.l}
-                className="mt-0.5 grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_88px] items-center gap-2 text-[10.5px]"
-              >
-                <span className="truncate">{x.l}</span>
-                <span className="h-1.5 rounded-full bg-[var(--line)]">
-                  <motion.span
-                    className="block h-1.5 rounded-full"
-                    style={{ background: x.c }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${x.v}%` }}
-                    transition={{ duration: 0.8, delay: 0.1 + i * 0.15 + k * 0.08 }}
-                  />
-                </span>
-                <span className="mono text-right">
-                  {x.v}% · {x.t}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-      <div className="mt-1 text-[10.5px] text-[var(--faint)]">
-        Same rule as this list, using only earlier orders each time. One-sided Fisher exact test. The two
-        windows overlap, so they’re two looks at one shop. Most flagged customers still came back.
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
