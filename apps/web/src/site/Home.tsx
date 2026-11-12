@@ -114,12 +114,6 @@ export function LivePreview() {
 
 export default function Home() {
   const sample = useOpenSample();
-  const { findings, dataset } = useStore();
-  const [ideas, setIdeas] = useState<any[]>([]);
-  useEffect(() => {
-    tool('test-hypotheses', { useAI: false }).then((r) => r.ok && setIdeas(r.data.results));
-  }, [dataset?.name]);
-  const decided = ideas.filter((h) => h.verdict !== 'inconclusive');
   const hero = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: hero, offset: ['start start', 'end start'] });
   const y = useTransform(scrollYProgress, [0, 1], [0, 160]),
@@ -253,145 +247,8 @@ export default function Home() {
       <ProofTicker />
       <HorizontalGallery />
 
-      {/* Steps teaser */}
-      <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6">
-        <Reveal>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="label" style={{ color: 'var(--cyan)' }}>
-                How it works
-              </div>
-              <h2 className="mt-1.5 text-[26px] font-extrabold tracking-tight md:text-[34px]">
-                Connect. Find. Fix.
-              </h2>
-            </div>
-            <button className="btn" onClick={() => siteGo('how')}>
-              See how it works
-              <ArrowRight size={13} />
-            </button>
-          </div>
-        </Reveal>
-        <div className="relative mt-8 grid gap-4 md:grid-cols-3">
-          <motion.div
-            className="absolute left-[16%] right-[16%] top-[26px] hidden h-[2px] origin-left md:block"
-            style={{
-              background: 'linear-gradient(90deg, var(--emerald), var(--cyan), var(--violet))',
-              boxShadow: '0 0 12px var(--cyan)',
-            }}
-            initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1.3 }}
-          />
-          {[
-            {
-              icon: PlugZap,
-              c: 'var(--emerald)',
-              t: 'Connect',
-              d: 'Shopify, its order export, or any sales spreadsheet.',
-            },
-            {
-              icon: Search,
-              c: 'var(--cyan)',
-              t: 'Find',
-              d: 'Cleans the data and hunts for problems, testing each one.',
-            },
-            {
-              icon: Wrench,
-              c: 'var(--violet)',
-              t: 'Fix',
-              d: 'What each problem costs, and a plan from easy to hard.',
-            },
-          ].map((s, i) => (
-            <Reveal key={s.t}>
-              <div className="text-center">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: -6 }}
-                  className="relative z-10 mx-auto grid h-14 w-14 place-items-center rounded-2xl"
-                  style={{ background: s.c, boxShadow: `0 0 0 6px var(--bg), 0 0 30px -4px ${s.c}` }}
-                >
-                  <s.icon size={22} color="white" />
-                </motion.div>
-                <div className="mt-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: s.c }}>
-                  Step {i + 1}
-                </div>
-                <div className="text-[16px] font-extrabold">{s.t}</div>
-                <p className="mx-auto mt-1 max-w-xs text-[12.5px] text-[var(--muted)]">{s.d}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* Real results strip */}
-      <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6">
-        <Reveal>
-          <BeamCard on c="var(--emerald)" className="p-5 md:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="label" style={{ color: 'var(--emerald)' }}>
-                  Real results
-                </div>
-                <div className="mt-1 text-[20px] font-extrabold tracking-tight md:text-[24px]">
-                  Tested on a real online shop's sales.
-                </div>
-                <SampleNotice className="!mx-0 mt-2" />
-              </div>
-              <span className="chip" style={{ '--c': 'var(--emerald)' } as CSSProperties}>
-                <BadgeCheck size={11} />
-                Headline numbers independently re-checked
-              </span>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-              {[
-                { l: 'Records analyzed', v: dataset?.rows ?? 0, c: 'var(--cyan)' },
-                { l: 'Problems found', v: findings.length, c: 'var(--rose)' },
-                { l: 'Ideas tested by statistics', v: decided.length, c: 'var(--emerald)' },
-                { l: 'Seconds to analyze 1M rows', v: 6, c: 'var(--violet)' },
-              ].map((s) => (
-                <div key={s.l} className="tint rounded-xl p-3" style={{ '--c': s.c } as CSSProperties}>
-                  <div className="label">{s.l}</div>
-                  <CountUp value={s.v} className="text-[24px] font-semibold" duration={1.6} />
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2">
-              {decided.slice(0, 4).map((h, i) => (
-                <motion.div
-                  key={h.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  className="flex items-start gap-2 rounded-lg px-3 py-2"
-                  style={{ background: 'var(--line)' }}
-                >
-                  {h.verdict === 'supported' ? (
-                    <Check size={14} className="mt-0.5 flex-none" style={{ color: VERDICT[h.verdict].c }} />
-                  ) : (
-                    <X size={14} className="mt-0.5 flex-none" style={{ color: VERDICT[h.verdict]?.c }} />
-                  )}
-                  <div>
-                    <div
-                      className="text-[11px] font-bold uppercase tracking-wider"
-                      style={{ color: VERDICT[h.verdict]?.c }}
-                    >
-                      {VERDICT[h.verdict]?.label}
-                    </div>
-                    <div className="text-[12.5px] font-bold">{h.claim}</div>
-                    <div className="text-[11px] text-[var(--muted)]">{h.summary}</div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            <button className="btn mt-4" onClick={() => siteGo('results')}>
-              See all real results
-              <ArrowRight size={13} />
-            </button>
-          </BeamCard>
-        </Reveal>
-      </section>
-
+      <StepsTeaser />
+      <RealResults />
       <FinalCta />
     </>
   );
@@ -440,5 +297,160 @@ export function FinalCta() {
         </div>
       </Reveal>
     </section>
+  );
+}
+
+/** Connect, Find, Fix: the three steps, joined by a line that draws itself. */
+export function StepsTeaser() {
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6">
+    <Reveal>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="label" style={{ color: 'var(--cyan)' }}>
+            How it works
+          </div>
+          <h2 className="mt-1.5 text-[26px] font-extrabold tracking-tight md:text-[34px]">
+            Connect. Find. Fix.
+          </h2>
+        </div>
+        <button className="btn" onClick={() => siteGo('how')}>
+          See how it works
+          <ArrowRight size={13} />
+        </button>
+      </div>
+    </Reveal>
+    <div className="relative mt-8 grid gap-4 md:grid-cols-3">
+      <motion.div
+        className="absolute left-[16%] right-[16%] top-[26px] hidden h-[2px] origin-left md:block"
+        style={{
+          background: 'linear-gradient(90deg, var(--emerald), var(--cyan), var(--violet))',
+          boxShadow: '0 0 12px var(--cyan)',
+        }}
+        initial={{ scaleX: 0 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1.3 }}
+      />
+      {[
+        {
+          icon: PlugZap,
+          c: 'var(--emerald)',
+          t: 'Connect',
+          d: 'Shopify, its order export, or any sales spreadsheet.',
+        },
+        {
+          icon: Search,
+          c: 'var(--cyan)',
+          t: 'Find',
+          d: 'Cleans the data and hunts for problems, testing each one.',
+        },
+        {
+          icon: Wrench,
+          c: 'var(--violet)',
+          t: 'Fix',
+          d: 'What each problem costs, and a plan from easy to hard.',
+        },
+      ].map((s, i) => (
+        <Reveal key={s.t}>
+          <div className="text-center">
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: -6 }}
+              className="relative z-10 mx-auto grid h-14 w-14 place-items-center rounded-2xl"
+              style={{ background: s.c, boxShadow: `0 0 0 6px var(--bg), 0 0 30px -4px ${s.c}` }}
+            >
+              <s.icon size={22} color="white" />
+            </motion.div>
+            <div className="mt-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: s.c }}>
+              Step {i + 1}
+            </div>
+            <div className="text-[16px] font-extrabold">{s.t}</div>
+            <p className="mx-auto mt-1 max-w-xs text-[12.5px] text-[var(--muted)]">{s.d}</p>
+          </div>
+        </Reveal>
+      ))}
+    </div>
+  </section>
+
+  );
+}
+
+/** The real-shop proof: headline counts and the ideas statistics settled. */
+export function RealResults() {
+  const { findings, dataset } = useStore();
+  const [ideas, setIdeas] = useState<any[]>([]);
+  useEffect(() => {
+    tool('test-hypotheses', { useAI: false }).then((r) => r.ok && setIdeas(r.data.results));
+  }, [dataset?.name]);
+  const decided = ideas.filter((h) => h.verdict !== 'inconclusive');
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6">
+    <Reveal>
+      <BeamCard on c="var(--emerald)" className="p-5 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="label" style={{ color: 'var(--emerald)' }}>
+              Real results
+            </div>
+            <div className="mt-1 text-[20px] font-extrabold tracking-tight md:text-[24px]">
+              Tested on a real online shop's sales.
+            </div>
+            <SampleNotice className="!mx-0 mt-2" />
+          </div>
+          <span className="chip" style={{ '--c': 'var(--emerald)' } as CSSProperties}>
+            <BadgeCheck size={11} />
+            Headline numbers independently re-checked
+          </span>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            { l: 'Records analyzed', v: dataset?.rows ?? 0, c: 'var(--cyan)' },
+            { l: 'Problems found', v: findings.length, c: 'var(--rose)' },
+            { l: 'Ideas tested by statistics', v: decided.length, c: 'var(--emerald)' },
+            { l: 'Seconds to analyze 1M rows', v: 6, c: 'var(--violet)' },
+          ].map((s) => (
+            <div key={s.l} className="tint rounded-xl p-3" style={{ '--c': s.c } as CSSProperties}>
+              <div className="label">{s.l}</div>
+              <CountUp value={s.v} className="text-[24px] font-semibold" duration={1.6} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {decided.slice(0, 4).map((h, i) => (
+            <motion.div
+              key={h.id}
+              initial={{ opacity: 0, y: 8 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="flex items-start gap-2 rounded-lg px-3 py-2"
+              style={{ background: 'var(--line)' }}
+            >
+              {h.verdict === 'supported' ? (
+                <Check size={14} className="mt-0.5 flex-none" style={{ color: VERDICT[h.verdict].c }} />
+              ) : (
+                <X size={14} className="mt-0.5 flex-none" style={{ color: VERDICT[h.verdict]?.c }} />
+              )}
+              <div>
+                <div
+                  className="text-[11px] font-bold uppercase tracking-wider"
+                  style={{ color: VERDICT[h.verdict]?.c }}
+                >
+                  {VERDICT[h.verdict]?.label}
+                </div>
+                <div className="text-[12.5px] font-bold">{h.claim}</div>
+                <div className="text-[11px] text-[var(--muted)]">{h.summary}</div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        <button className="btn mt-4" onClick={() => siteGo('results')}>
+          See all real results
+          <ArrowRight size={13} />
+        </button>
+      </BeamCard>
+    </Reveal>
+  </section>
+
   );
 }

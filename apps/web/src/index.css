@@ -603,3 +603,5 @@ input[type='range']::-moz-range-thumb {
 .story-dot[data-on='true'] i { height: 22px; background: linear-gradient(var(--violet), var(--cyan)); box-shadow: 0 0 12px var(--violet); }
 .story-dot[data-on='true'] span { opacity: 1; color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .story-rise, .story-hint::after, .story-grad { animation-duration: .01s; animation-iteration-count: 1; } }
+.story-read-bg { background: linear-gradient(180deg, transparent, rgba(4,4,10,.55) 9%, rgba(4,4,10,.55) 91%, transparent); }
+.story-read-line { background: linear-gradient(90deg, transparent, var(--c)); box-shadow: 0 0 10px var(--c); opacity: .7; }

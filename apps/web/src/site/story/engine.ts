@@ -34,11 +34,14 @@ export type StoryFrame = {
   p: number;
   /** How far the page has scrolled past the end of the journey, in screens. */
   after: number;
+  /** 0 to 1: how much a reading section covers the screen (the cinematic captions step aside). */
+  dim: number;
   vel: number;
   labels: { x: number; y: number; d: number }[];
 };
 export type StoryOpts = {
-  track: HTMLElement;
+  /** Where the journey is (0 to 1), how far past its end the page is, and how much reading content covers the screen. */
+  progress: () => { p: number; after: number; dim: number };
   labels: [number, number, number][];
   still: boolean;
   onFrame: (f: StoryFrame) => void;
@@ -305,11 +308,12 @@ const LENS = {
     uRingR: { value: 0.42 },
     uFlash: { value: 0 },
     uCA: { value: 0.0015 },
+    uDim: { value: 0 },
     uAspect: { value: 1 },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
   fragmentShader: `
-uniform sampler2D tDiffuse; uniform float uTime, uRing, uRingR, uFlash, uCA, uAspect; varying vec2 vUv;
+uniform sampler2D tDiffuse; uniform float uTime, uRing, uRingR, uFlash, uCA, uAspect, uDim; varying vec2 vUv;
 float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){
   vec2 c = vUv - .5; vec2 cc = c; cc.x *= uAspect; float r = length(cc);
@@ -324,6 +328,7 @@ void main(){
   float gr = h(vUv * 900. + fract(uTime * 7.)) - .5;
   col *= 1. + gr * .1;
   col += gr * .004;
+  col *= 1. - uDim * (.62 + .2 * smoothstep(.1, .7, r));
   col = mix(col, vec3(1.), clamp(uFlash, 0., 1.));
   gl_FragColor = vec4(col, 1.);
 }`,
@@ -694,11 +699,8 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
   addEventListener('resize', resize);
 
   // ---------- frame loop ----------
-  const target = () => {
-    const r = o.track.getBoundingClientRect();
-    const range = Math.max(1, r.height - innerHeight);
-    return { p: clamp01(-r.top / range), after: Math.max(0, (-r.top - range) / innerHeight) };
-  };
+  const target = o.progress;
+  let dim = 0;
   let p = target().p,
     raf = 0,
     began = -1;
@@ -713,6 +715,8 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     p += (tg.p - p) * (o.still ? 1 : 0.075);
     if (Math.abs(tg.p - p) < 1e-5) p = tg.p;
     const vel = Math.min(1, Math.abs(p - prev) * 90);
+    dim += (tg.dim - dim) * (o.still ? 1 : 0.16);
+    lens.uniforms.uDim.value = dim;
     mx += (tmx - mx) * 0.05;
     my += (tmy - my) * 0.05;
     const aspect = innerWidth / innerHeight,
@@ -807,7 +811,7 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     lens.uniforms.uCA.value = 0.0012 + vel * 0.012 + seg(p, 0.17, 0.2) * 0.004 * (1 - seg(p, 0.2, 0.24));
     const flashIn = seg(p, 0.752, 0.775),
       flashOut = 1 - seg(p, 0.775, 0.795);
-    lens.uniforms.uFlash.value = Math.min(flashIn, flashOut) + 0.35 * Math.max(0, 1 - Math.abs(p - 0.2) / 0.02);
+    lens.uniforms.uFlash.value = Math.min(flashIn, flashOut) + 0.12 * Math.max(0, 1 - Math.abs(p - 0.2) / 0.012);
     bloom.strength = lerp(0.7, 1.3, seg(p, 0.1, 0.2)) * (1 - seg(p, 0.2, 0.26) * 0.3) + inTunnel * 0.15;
     scene.fog!.color.setHex(0x04040a);
     (scene.fog as THREE.FogExp2).density = p > 0.775 ? 0.006 : 0.012;
@@ -818,7 +822,7 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
       proj.set(x, y, lz).project(camera);
       return { x: (proj.x * 0.5 + 0.5) * innerWidth, y: (-proj.y * 0.5 + 0.5) * innerHeight, d: lz - z };
     });
-    o.onFrame({ p, after: tg.after, vel, labels });
+    o.onFrame({ p, after: tg.after, dim, vel, labels });
   };
   raf = requestAnimationFrame(frame);
 
