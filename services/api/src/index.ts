@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { callTool, listTools, screenUserInput, redactSecrets } from '@blindspot/tool-contracts';
-import { generateSampleDataset, profileData, detectFields, crosstab } from '@blindspot/analytics';
+import { generateSampleDataset, profileData, detectFields, crosstab, toMs } from '@blindspot/analytics';
 import { BridgeHub } from './bridge';
 import { makeLlm, claudeChat, MODELS, getModel, setModel, type ModelId } from './llm';
 import { factCheck } from './verify';
@@ -258,15 +258,50 @@ app.get('/api/crosstab', (req, res) => {
   if (!q.success)
     return res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'row, col, measure required' } });
   const state = sessions.get(sid(req));
-  const cols = new Set(profileData(state.view()).columns.map((c) => c.name));
+  const view = state.view();
+  const cols = new Set(profileData(view).columns.map((c) => c.name));
+  // "@Weekday" and "@Month" are built from the order date, so every shop with dates gets a heatmap.
+  const ORDER: Record<string, string[]> = {
+    '@Weekday': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    '@Month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  };
+  const date = detectFields(view).date;
   for (const f of [q.data.row, q.data.col, q.data.measure, q.data.ratioOf].filter(Boolean) as string[])
-    if (!cols.has(f))
+    if (!cols.has(f) && !(ORDER[f] && date))
       return res.status(400).json({ error: { code: 'UNKNOWN_FIELD', message: `Unknown field ${f}` } });
   // Same definition as everywhere else: sales = sale lines before returns (returns are counted separately).
-  const vrows = state.view().rows,
-    saleRows = vrows[0] && 'IsReturn' in vrows[0] ? vrows.filter((r) => r.IsReturn !== 1) : vrows;
+  const vrows = view.rows;
+  let saleRows = vrows[0] && 'IsReturn' in vrows[0] ? vrows.filter((r) => r.IsReturn !== 1) : vrows;
+  const derived = [q.data.row, q.data.col].filter((d) => ORDER[d]);
+  if (derived.length && date)
+    saleRows = saleRows.flatMap((r) => {
+      const t = toMs(r[date]);
+      if (!Number.isFinite(t)) return [];
+      const d = new Date(t);
+      return [
+        {
+          ...r,
+          '@Weekday': ORDER['@Weekday'][(d.getUTCDay() + 6) % 7],
+          '@Month': ORDER['@Month'][d.getUTCMonth()],
+        },
+      ];
+    });
+  const out = crosstab(saleRows, q.data.row, q.data.col, q.data.measure, q.data.ratioOf);
+  // Put weekdays and months in calendar order rather than alphabetical.
+  const reorder = (labels: string[], dim: string) =>
+    ORDER[dim]
+      ? labels
+          .map((l, i) => [l, i] as const)
+          .sort((a, b) => ORDER[dim].indexOf(a[0]) - ORDER[dim].indexOf(b[0]))
+      : labels.map((l, i) => [l, i] as const);
+  const ro = reorder(out.rows, q.data.row),
+    co = reorder(out.cols, q.data.col);
   res.json({
-    ...crosstab(saleRows, q.data.row, q.data.col, q.data.measure, q.data.ratioOf),
+    ...out,
+    rows: ro.map(([l]) => l),
+    cols: co.map(([l]) => l),
+    values: ro.map(([, i]) => co.map(([, j]) => out.values[i][j])),
+    counts: ro.map(([, i]) => co.map(([, j]) => out.counts[i][j])),
     basis: 'sale lines, before returns',
   });
 });
@@ -334,8 +369,12 @@ app.get('/api/events', (req, res) => {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, '../../../apps/web/dist');
 if (existsSync(dist)) {
+  // Hashed build files never change; the page itself must always be fresh so it names the current ones.
+  app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y' }));
   app.use(express.static(dist, { index: false, maxAge: '1h' }));
-  app.get(/^(?!\/api|\/bridge).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  app.get(/^(?!\/api|\/bridge).*/, (_req, res) =>
+    res.set('Cache-Control', 'no-cache').sendFile(path.join(dist, 'index.html')),
+  );
 }
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
+import { lazy as reactLazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import {
   Table2,
   LayoutDashboard,
@@ -25,6 +25,25 @@ import {
 import { useStore } from './store';
 import { Chip, Dropdown } from './components/ui';
 // Each page loads when first opened (route-level code splitting keeps the first download small).
+// After a deploy, a tab opened earlier still asks for the old page files, which no longer exist.
+// Instead of a stuck "This page hit a problem", reload once to pick up the new build.
+const lazy: typeof reactLazy = (load) =>
+  reactLazy(() =>
+    load().catch((err) => {
+      let last = 0;
+      try {
+        last = Number(sessionStorage.getItem('bs-chunk-reload') || 0);
+        if (Date.now() - last > 15000) sessionStorage.setItem('bs-chunk-reload', String(Date.now()));
+      } catch {
+        /* storage blocked: still reload once below */
+      }
+      if (Date.now() - last > 15000) {
+        location.reload();
+        return new Promise<never>(() => {});
+      }
+      throw err;
+    }),
+  );
 const Overview = lazy(() => import('./pages/Overview'));
 const DataSources = lazy(() => import('./pages/DataSources'));
 const Analyst = lazy(() => import('./pages/Analyst'));

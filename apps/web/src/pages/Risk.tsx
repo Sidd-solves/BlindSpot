@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
+  Area,
   Bar,
   CartesianGrid,
   Cell,
   ComposedChart,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -185,7 +187,15 @@ function Evidence({ ev }: { ev: Record<string, any> }) {
   );
 }
 
-function Detail({ f, focusOnOpen = false }: { f: Finding; focusOnOpen?: boolean }) {
+function Detail({
+  f,
+  focusOnOpen = false,
+  linked = false,
+}: {
+  f: Finding;
+  focusOnOpen?: boolean;
+  linked?: boolean;
+}) {
   const s = SEV[f.severity],
     c = CAT[f.category];
   // Arriving from a link (Overview, chat, report), keyboard focus moves to the finding itself, so the next Tab reaches
@@ -213,6 +223,17 @@ function Detail({ f, focusOnOpen = false }: { f: Finding; focusOnOpen?: boolean 
         </Chip>
         <Chip c={c.c}>{c.label}</Chip>
         <span className="mono text-[11.5px] text-[var(--faint)]">score {f.score}</span>
+        {linked && (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wider"
+            style={{ color: s.c, background: `color-mix(in srgb, ${s.c} 14%, transparent)` }}
+          >
+            <Crosshair size={11} />
+            The one you clicked
+          </motion.span>
+        )}
       </div>
       <h2 className="text-[15px] font-extrabold leading-snug tracking-tight">{f.title}</h2>
       <div className="flex items-center gap-3">
@@ -317,14 +338,22 @@ function Detail({ f, focusOnOpen = false }: { f: Finding; focusOnOpen?: boolean 
 
 function Heatmap() {
   const { dataset, version } = useStore();
-  const dims =
+  const f = dataset?.fields;
+  const cats =
     dataset?.columns.filter((c) => c.type === 'category' && c.distinct <= 16).map((c) => c.name) ?? [];
+  // Month and Weekday come from the order date, so a shop with no small category columns still gets a grid.
+  const dims = [...cats, ...(f?.date ? ['@Month', '@Weekday'] : [])];
+  const lbl = (d: string) => (d.startsWith('@') ? d.slice(1) : d),
+    unlbl = (v: string[]) => v.map((x) => dims.find((d) => lbl(d) === x) ?? x);
   const [row, setRow] = useState<string[]>([]),
     [col, setCol] = useState<string[]>([]);
   const [data, setData] = useState<any>(null);
-  const r = row[0] ?? dims[0],
-    c = col[0] ?? dims.find((d) => d !== r && /sub|categ/i.test(d)) ?? dims[1];
-  const f = dataset?.fields;
+  const r = row[0] ?? (cats.length >= 2 ? cats[0] : dims.includes('@Month') ? '@Month' : dims[0]),
+    c =
+      col[0] ??
+      (cats.length >= 2
+        ? (cats.find((d) => d !== r && /sub|categ/i.test(d)) ?? cats.find((d) => d !== r))
+        : (dims.find((d) => d !== r && d === '@Weekday') ?? dims.find((d) => d !== r)));
   useEffect(() => {
     if (!r || !c || !f) return;
     const q = f.profit
@@ -347,24 +376,25 @@ function Heatmap() {
     <Card c="var(--emerald)" hover={false}>
       <CardHead
         icon={<Grid3x3 size={13} />}
-        title={isRatio ? 'Margin heatmap' : 'Heatmap'}
+        title={isRatio ? 'Margin heatmap' : 'Where sales cluster'}
         c="var(--emerald)"
         right={
           <div className="flex gap-1.5">
             <Dropdown
-              width={112}
-              value={row}
-              options={dims}
-              onChange={setRow}
-              placeholder={r ?? 'Rows'}
+              width={104}
+              value={row.map(lbl)}
+              options={dims.filter((d) => d !== c).map(lbl)}
+              onChange={(v) => setRow(unlbl(v))}
+              placeholder={r ? lbl(r) : 'Rows'}
               c="var(--emerald)"
             />
+            <span className="self-center text-[11px] font-bold text-[var(--faint)]">×</span>
             <Dropdown
-              width={122}
-              value={col}
-              options={dims.filter((d) => d !== r)}
-              onChange={setCol}
-              placeholder={c ?? 'Columns'}
+              width={104}
+              value={col.map(lbl)}
+              options={dims.filter((d) => d !== r).map(lbl)}
+              onChange={(v) => setCol(unlbl(v))}
+              placeholder={c ? lbl(c) : 'Columns'}
               c="var(--emerald)"
             />
           </div>
@@ -401,7 +431,7 @@ function Heatmap() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: (i * data.cols.length + j) * 0.012 }}
                         whileHover={{ scale: 1.08 }}
-                        className="mono grid h-7 min-w-[46px] place-items-center rounded-md text-[11.5px] font-semibold"
+                        className="mono grid h-6 min-w-[34px] place-items-center rounded-md text-[10.5px] font-semibold"
                         style={{
                           background: color(v),
                           border: v !== null && v < 0 ? '1px solid var(--rose)' : '1px solid var(--line)',
@@ -465,7 +495,7 @@ function Pareto() {
     <Card c="var(--violet)" hover={false}>
       <CardHead
         icon={<BarChart3 size={13} />}
-        title="Pareto concentration"
+        title="Who your sales depend on"
         c="var(--violet)"
         right={
           <Dropdown
@@ -491,43 +521,128 @@ function Pareto() {
           </span>
         </div>
       )}
-      <div className="h-[210px] px-1 pb-2 pt-1">
-        <ResponsiveContainer>
-          <ComposedChart
-            data={(data?.groups ?? []).map((g: any) => ({ ...g, sh: g.share * 100, cum: g.cumShare * 100 }))}
-            margin={{ top: 6, right: 10, left: -18, bottom: 0 }}
-          >
-            <CartesianGrid stroke="var(--line)" vertical={false} />
-            <XAxis
-              dataKey="key"
-              {...axis}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-              height={46}
-              tickFormatter={(v) => String(v).replace('Customer ', 'C')}
-            />
-            <YAxis {...axis} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-            <Tooltip
-              content={<ChartTip fmt={(v) => `${v.toFixed(1)}%`} />}
-              cursor={{ fill: 'var(--line)' }}
-            />
-            <Bar dataKey="sh" name="Share" radius={[4, 4, 0, 0]} animationDuration={900}>
-              {(data?.groups ?? []).map((g: any, i: number) => (
-                <Cell key={i} fill={g.cumShare <= 0.8 ? 'var(--violet)' : 'var(--line-strong)'} />
-              ))}
-            </Bar>
-            <Line
-              dataKey="cum"
-              name="Cumulative"
-              stroke="var(--cyan)"
-              strokeWidth={2.2}
-              dot={{ r: 2 }}
-              type="monotone"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      {data?.curve && data.groupCount > 20 ? (
+        // Many groups (e.g. 1,458 customers): a top-20 bar chart would cover only a sliver, so show the whole
+        // curve instead: the top x% of customers bring in y% of sales, against an even split.
+        <div className="h-[210px] px-1 pb-2 pt-1">
+          <ResponsiveContainer>
+            <ComposedChart
+              data={data.curve.map((p: any) => ({ ...p, even: p.x }))}
+              margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="pareto-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--violet)" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="var(--violet)" stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--line)" vertical={false} />
+              <XAxis
+                dataKey="x"
+                type="number"
+                domain={[0, 100]}
+                ticks={[0, 20, 40, 60, 80, 100]}
+                {...axis}
+                tickFormatter={(v) => `${v}%`}
+                label={{
+                  value: `top % of ${String(data.dimension).toLowerCase()}s`,
+                  position: 'insideBottom',
+                  offset: 0,
+                  fill: 'var(--faint)',
+                  fontSize: 10.5,
+                }}
+                height={36}
+              />
+              <YAxis {...axis} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                content={({ active, payload }: any) =>
+                  active && payload?.[0] ? (
+                    <div
+                      className="panel px-2.5 py-1.5 text-[11.5px]"
+                      style={{ background: 'var(--panel-solid)' }}
+                    >
+                      Top <b>{payload[0].payload.x}%</b> bring in{' '}
+                      <b style={{ color: 'var(--violet)' }}>{payload[0].payload.y}%</b> of sales
+                    </div>
+                  ) : null
+                }
+              />
+              <ReferenceLine y={80} stroke="var(--cyan)" strokeDasharray="4 3" />
+              <ReferenceLine
+                x={Math.round((data.groupsFor80Pct / data.groupCount) * 100)}
+                stroke="var(--cyan)"
+                strokeDasharray="4 3"
+                label={{
+                  value: `${Math.round((data.groupsFor80Pct / data.groupCount) * 100)}% → 80%`,
+                  position: 'insideTopRight',
+                  fill: 'var(--cyan)',
+                  fontSize: 10.5,
+                }}
+              />
+              <Line
+                dataKey="even"
+                name="Even split"
+                stroke="var(--line-strong)"
+                strokeDasharray="3 3"
+                dot={false}
+                isAnimationActive={false}
+              />
+              <Area
+                dataKey="y"
+                name="Share of sales"
+                type="monotone"
+                stroke="var(--violet)"
+                strokeWidth={2.4}
+                fill="url(#pareto-fill)"
+                style={{ filter: 'drop-shadow(0 0 6px var(--violet))' }}
+                animationDuration={1100}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="h-[210px] px-1 pb-2 pt-1">
+          <ResponsiveContainer>
+            <ComposedChart
+              data={(data?.groups ?? []).map((g: any) => ({
+                ...g,
+                sh: g.share * 100,
+                cum: g.cumShare * 100,
+              }))}
+              margin={{ top: 6, right: 10, left: -18, bottom: 0 }}
+            >
+              <CartesianGrid stroke="var(--line)" vertical={false} />
+              <XAxis
+                dataKey="key"
+                {...axis}
+                interval={0}
+                angle={-35}
+                textAnchor="end"
+                height={46}
+                tickFormatter={(v) => String(v).replace('Customer ', 'C')}
+              />
+              <YAxis {...axis} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                content={<ChartTip fmt={(v) => `${v.toFixed(1)}%`} />}
+                cursor={{ fill: 'var(--line)' }}
+              />
+              <Bar dataKey="sh" name="Share" radius={[4, 4, 0, 0]} animationDuration={900}>
+                {(data?.groups ?? []).map((g: any, i: number) => (
+                  <Cell key={i} fill={g.cumShare <= 0.8 ? 'var(--violet)' : 'var(--line-strong)'} />
+                ))}
+              </Bar>
+              <Line
+                dataKey="cum"
+                name="Cumulative"
+                stroke="var(--cyan)"
+                strokeWidth={2.2}
+                dot={{ r: 2 }}
+                type="monotone"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
       {data && <div className="px-3.5 pb-3 text-[11.5px] text-[var(--muted)]">{data.interpretation}</div>}
     </Card>
   );
@@ -538,6 +653,24 @@ export default function Risk() {
   const [cat, setCat] = useState('all');
   const initial = new URLSearchParams(location.hash.split('?')[1] ?? '').get('f');
   const [sel, setSel] = useState<string | null>(initial);
+  // Arriving from a button elsewhere (Overview, briefing, report), the finding it points at is spotlighted until
+  // another one is picked. Opening Risk from the sidebar has no ?f=, so nothing is spotlighted.
+  const [linked, setLinked] = useState<string | null>(initial);
+  useEffect(() => {
+    if (!linked) return;
+    const t = setTimeout(
+      () =>
+        document
+          .getElementById(`finding-${linked}`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+      350,
+    );
+    return () => clearTimeout(t);
+  }, [linked, findings.length]);
+  const pick = (id: string) => {
+    setSel(id);
+    if (id !== linked) setLinked(null);
+  };
   const list = useMemo(
     () => (cat === 'all' ? findings : findings.filter((f) => f.category === cat)),
     [cat, findings],
@@ -608,10 +741,30 @@ export default function Risk() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ delay: i * 0.025 }}
-                  onClick={() => setSel(f.id)}
+                  id={`finding-${f.id}`}
+                  onClick={() => pick(f.id)}
                   className="row-hover relative grid w-full grid-cols-[4px_1fr_auto] items-center gap-2.5 rounded-lg px-2 py-2 text-left"
-                  style={on ? { background: `color-mix(in srgb, ${s.c} 10%, transparent)` } : undefined}
+                  style={
+                    linked === f.id
+                      ? {
+                          background: `color-mix(in srgb, ${s.c} 16%, transparent)`,
+                          boxShadow: `inset 0 0 0 1.5px ${s.c}`,
+                        }
+                      : on
+                        ? { background: `color-mix(in srgb, ${s.c} 10%, transparent)` }
+                        : undefined
+                  }
                 >
+                  {linked === f.id && (
+                    <motion.span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 rounded-lg"
+                      initial={{ opacity: 0.9 }}
+                      animate={{ opacity: [0.9, 0.2, 0.9] }}
+                      transition={{ duration: 1.8, repeat: Infinity }}
+                      style={{ boxShadow: `0 0 18px ${s.c}` }}
+                    />
+                  )}
                   <span
                     className="h-8 rounded-full"
                     style={{ background: s.c, boxShadow: on ? `0 0 10px ${s.c}` : 'none' }}
@@ -653,7 +806,7 @@ export default function Risk() {
       >
         <AnimatePresence mode="wait">
           {selected ? (
-            <Detail f={selected} focusOnOpen={selected.id === initial} />
+            <Detail f={selected} focusOnOpen={selected.id === initial} linked={selected.id === linked} />
           ) : (
             <Empty icon={<Crosshair size={18} />} title="Select a finding" />
           )}
@@ -706,7 +859,7 @@ export default function Risk() {
                       ) : null
                     }
                   />
-                  <Scatter data={bubbles} onClick={(p: any) => setSel(p.f.id)} animationDuration={900}>
+                  <Scatter data={bubbles} onClick={(p: any) => pick(p.f.id)} animationDuration={900}>
                     {bubbles.map((b, i) => (
                       <Cell
                         key={i}

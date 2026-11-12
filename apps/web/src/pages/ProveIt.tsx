@@ -98,7 +98,7 @@ const ValuesError = ({ retry }: { retry: () => void }) => (
   </button>
 );
 
-/* ------------------------------------------------------------------ Was it the promo? */
+/* ------------------------------------------------------------------ Did my change work? */
 function PromoTest({ weeks }: { weeks: string[] }) {
   const { dataset } = useStore();
   const fields = useMemo(
@@ -160,7 +160,7 @@ function PromoTest({ weeks }: { weeks: string[] }) {
     <Card c="var(--fuchsia)" className="lg:col-span-7" hover={false}>
       <CardHead
         icon={<Megaphone size={13} />}
-        title="Was it the promo?"
+        title="Did my change work?"
         c="var(--fuchsia)"
         right={<Chip c="var(--fuchsia)">season controlled</Chip>}
       />
@@ -211,14 +211,27 @@ function PromoTest({ weeks }: { weeks: string[] }) {
           />
         </div>
 
-        {!week && (
+        {!pickable.length && (
+          <div
+            className="tint flex items-start gap-2 rounded-lg p-2.5 text-[12px]"
+            style={{ '--c': 'var(--amber)' } as CSSProperties}
+          >
+            <CircleSlash size={14} className="mt-0.5 flex-none" style={{ color: 'var(--amber)' }} />
+            <span>
+              <b style={{ color: 'var(--amber)' }}>Can’t run this test:</b> it needs at least 12 weeks of
+              dated sales (8 before the change and some after). This data doesn’t have that.
+            </span>
+          </div>
+        )}
+        {!week && pickable.length > 0 && (
           <div className="space-y-2">
             <div
               className="tint flex items-center gap-2 rounded-lg p-3 text-[12px] text-[var(--muted)]"
               style={{ '--c': 'var(--fuchsia)' } as CSSProperties}
             >
               <HelpCircle size={14} className="flex-none" style={{ color: 'var(--fuchsia)' }} />
-              Pick the week a promotion, price change or new product started.
+              BlindSpot can’t see your promotions. Pick the week you ran one (or changed a price, or launched
+              a product), and it checks whether sales really moved.
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               {[
@@ -273,7 +286,17 @@ function PromoTest({ weeks }: { weeks: string[] }) {
             ]}
           />
         )}
-        {res && !busy && !res.ok && <div className="text-[12px] text-[var(--muted)]">{res.reason}</div>}
+        {res && !busy && !res.ok && (
+          <div
+            className="tint flex items-start gap-2 rounded-lg p-2.5 text-[12px]"
+            style={{ '--c': 'var(--amber)' } as CSSProperties}
+          >
+            <CircleSlash size={14} className="mt-0.5 flex-none" style={{ color: 'var(--amber)' }} />
+            <span>
+              <b style={{ color: 'var(--amber)' }}>Can’t run this test:</b> {res.reason}
+            </span>
+          </div>
+        )}
         {err && !busy && <ToolError message={err} retry={() => setAttempt((x) => x + 1)} />}
         <AnimatePresence mode="wait">
           {res && !busy && res.ok && (

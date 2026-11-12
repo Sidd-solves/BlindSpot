@@ -235,16 +235,25 @@ function Workflow_() {
 function Hypotheses() {
   const { health, version } = useStore();
   const [res, setRes] = useState<any>(null),
-    [busy, setBusy] = useState<'' | 'lib' | 'ai'>('');
+    [busy, setBusy] = useState<'' | 'lib' | 'ai'>(''),
+    [kind, setKind] = useState<'lib' | 'ai'>('lib'),
+    [open, setOpen] = useState<string | null>(null);
   const runIt = async (useAI: boolean) => {
     setBusy(useAI ? 'ai' : 'lib');
+    setRes(null);
+    setOpen(null);
     const r = await tool('test-hypotheses', { useAI });
+    setKind(useAI ? 'ai' : 'lib');
     setRes(r.ok ? r.data : { results: [], aiNote: r.error?.message });
     setBusy('');
   };
   useEffect(() => {
     setRes(null);
   }, [version]);
+  // Each button shows only its own ideas: AI ideas replace the built-in ones instead of piling up underneath.
+  const shown: any[] = (res?.results ?? []).filter((h: any) =>
+    kind === 'ai' ? h.source === 'ai' : h.source !== 'ai',
+  );
   return (
     <Card c="var(--emerald)" hover={false}>
       <CardHead
@@ -253,12 +262,16 @@ function Hypotheses() {
         c="var(--emerald)"
         right={
           <div className="flex gap-1">
-            <button className="btn btn-primary !h-7" onClick={() => runIt(false)} disabled={!!busy}>
+            <button
+              className={`btn !h-7 ${!res || kind === 'lib' ? 'btn-primary' : ''}`}
+              onClick={() => runIt(false)}
+              disabled={!!busy}
+            >
               <Lightbulb size={12} />
               {busy === 'lib' ? 'Testing' : 'Test ideas'}
             </button>
             <button
-              className="btn !h-7"
+              className={`btn !h-7 ${res && kind === 'ai' ? 'btn-primary' : ''}`}
               onClick={() => runIt(true)}
               disabled={!!busy || !health?.ai}
               title={
@@ -267,13 +280,13 @@ function Hypotheses() {
                   : 'Add a Claude key to enable'
               }
             >
-              <Sparkles size={12} style={{ color: 'var(--fuchsia)' }} />
+              <Sparkles size={12} style={{ color: kind === 'ai' && res ? undefined : 'var(--fuchsia)' }} />
               {busy === 'ai' ? 'Thinking' : 'AI ideas'}
             </button>
           </div>
         }
       />
-      <div className="max-h-[420px] space-y-1.5 overflow-y-auto px-3.5 pb-3.5">
+      <div className="space-y-1 px-3.5 pb-3.5">
         {busy && (
           <Loading
             steps={
@@ -294,29 +307,58 @@ function Hypotheses() {
             Claude credits; the math is free.
           </div>
         )}
-        {res?.aiNote && <div className="text-[11px] text-[var(--amber)]">{res.aiNote}</div>}
-        {res?.results.map((h: any, i: number) => (
-          <motion.div
-            key={h.id + i}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="rounded-lg border p-2"
-            style={{ borderColor: 'var(--line)', borderLeft: `3px solid ${VERDICT[h.verdict].c}` }}
-          >
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Chip c={VERDICT[h.verdict].c}>{VERDICT[h.verdict].label}</Chip>
-              {h.source === 'ai' && <Chip c="var(--fuchsia)">AI idea</Chip>}
-              {h.stat && (
-                <span className="mono text-[11px] text-[var(--faint)]">
-                  {h.stat.name.replace('_', ' ')} = {h.stat.value}
-                </span>
-              )}
-            </div>
-            <div className="mt-1 text-[12px] font-bold">{h.claim}</div>
-            <div className="text-[11px] text-[var(--muted)]">{h.summary}</div>
-          </motion.div>
-        ))}
+        {!busy && res?.aiNote && <div className="text-[11px] text-[var(--amber)]">{res.aiNote}</div>}
+        {!busy && res && !shown.length && !res.aiNote && (
+          <div className="text-[11.5px] text-[var(--muted)]">No ideas could be tested on this data.</div>
+        )}
+        {!busy && shown.length > 0 && (
+          <div className="flex items-center justify-between pb-0.5 text-[10.5px] font-bold uppercase tracking-wider">
+            <span style={{ color: kind === 'ai' ? 'var(--fuchsia)' : 'var(--emerald)' }}>
+              {kind === 'ai' ? 'AI ideas' : 'Built-in ideas'} · {shown.length}
+            </span>
+            <span className="text-[var(--faint)]">tap one for the numbers</span>
+          </div>
+        )}
+        {!busy &&
+          shown.map((h: any, i: number) => {
+            const on = open === h.id;
+            return (
+              <motion.button
+                type="button"
+                layout
+                key={h.id + i}
+                aria-expanded={on}
+                onClick={() => setOpen(on ? null : h.id)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="row-hover block w-full rounded-md px-2 py-1 text-left"
+                style={{ background: 'var(--line)', borderLeft: `3px solid ${VERDICT[h.verdict].c}` }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="flex-none text-[10px] font-extrabold uppercase tracking-wider"
+                    style={{ color: VERDICT[h.verdict].c }}
+                  >
+                    {VERDICT[h.verdict].label}
+                  </span>
+                  <span className={`${on ? '' : 'truncate'} min-w-0 text-[11.5px] font-bold leading-snug`}>
+                    {h.claim}
+                  </span>
+                </div>
+                {on && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-0.5">
+                    <div className="text-[11px] leading-snug text-[var(--muted)]">{h.summary}</div>
+                    {h.stat && (
+                      <div className="mono mt-0.5 text-[10.5px] text-[var(--faint)]">
+                        {h.stat.name.replace('_', ' ')} = {h.stat.value}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </motion.button>
+            );
+          })}
       </div>
     </Card>
   );

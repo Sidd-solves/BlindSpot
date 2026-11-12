@@ -14,7 +14,6 @@ import {
 import { get, SID, usd, usdExact } from '../api';
 import { useStore, type Drill } from '../store';
 import { Card, CardHead, Chip, CountUp, Loading, stagger, fadeUp } from '../components/ui';
-import { go } from '../App';
 import { ProofReplay } from '../components/ProofReplay';
 
 interface Recon {
@@ -402,11 +401,6 @@ export default function SourceData() {
           c="var(--sky)"
           right={
             <div className="flex items-center gap-1.5">
-              {dataset?.prep && (
-                <button className="btn !h-7 text-[11px]" onClick={() => go('data')}>
-                  What was cleaned
-                </button>
-              )}
               <a
                 className="btn btn-primary !h-7 text-[11px]"
                 href={`/api/rows.csv?sid=${SID}${dq}${term ? `&q=${encodeURIComponent(term)}` : ''}`}

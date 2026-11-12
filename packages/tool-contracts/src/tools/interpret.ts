@@ -39,6 +39,8 @@ export const interpretConcentrationTool = defineTool({
     groups: z.array(
       z.object({ key: z.string(), value: z.number(), share: z.number(), cumShare: z.number() }),
     ),
+    /** Share of the total from the top x% of groups, x = 0, 5, …, 100 (covers every group, not just the listed ones). */
+    curve: z.array(z.object({ x: z.number(), y: z.number() })),
     interpretation: z.string(),
   }),
   async handler(ctx, i) {
@@ -56,8 +58,21 @@ export const interpretConcentrationTool = defineTool({
     ]);
     const rows = d.v.rows.filter((r) => r.IsReturn !== 1 && !UNKNOWN.has(String(r[d.name] ?? '')));
     const c = interpretConcentration(rows, d.name, m.name, i.limit);
+    const sums = new Map<string, number>();
+    for (const r of rows) {
+      const v = r[m.name];
+      if (typeof v === 'number') sums.set(String(r[d.name]), (sums.get(String(r[d.name])) ?? 0) + v);
+    }
+    const sorted = [...sums.values()].sort((a, b) => b - a),
+      tot = sorted.reduce((a, b) => a + b, 0) || 1,
+      cum = [0];
+    for (const v of sorted) cum.push(cum[cum.length - 1] + v);
+    const curve = Array.from({ length: 21 }, (_, k) => ({
+      x: k * 5,
+      y: Math.round((cum[Math.round((sorted.length * k) / 20)] / tot) * 1000) / 10,
+    }));
     const interpretation = `${c.groupsFor80Pct} of ${c.groupCount} known ${c.dimension} values (${Math.round((c.groupsFor80Pct / Math.max(1, c.groupCount)) * 100)}%) produce 80% of ${c.measure}; the largest is ${Math.round(c.top1Share * 100)}% and the top 5 are ${Math.round(c.top5Share * 100)}%. Dependency: ${c.risk} (from those shares; the HHI index ${c.hhi} is shown for reference, 10,000 = everything from one).`;
-    return { ...c, interpretation };
+    return { ...c, curve, interpretation };
   },
 });
 

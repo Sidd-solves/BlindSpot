@@ -153,7 +153,15 @@ function IdeasCard() {
         title="Ideas checked by math"
         c="var(--fuchsia)"
         right={
-          <button className="btn !h-6 !px-2 text-[11px]" onClick={() => go('analyst')}>
+          <button
+            className="btn !h-6 !px-2 text-[11px]"
+            onClick={() =>
+              go(
+                'analyst',
+                `?q=${encodeURIComponent('Which ideas about my business does the data support, and which does it reject?')}`,
+              )
+            }
+          >
             All
             <ArrowRight size={11} />
           </button>
