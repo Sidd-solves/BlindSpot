@@ -182,3 +182,25 @@ export function checkDraft(
   if (named.length) problems.push(`It names a product this customer didn't usually buy (${named[0]}).`);
   return problems;
 }
+
+/** "WHITE HANGING HEART T-LIGHT HOLDER" → "white hanging heart t-light holder" for a friendly note. */
+const niceProduct = (p?: string) => (p ? (p === p.toUpperCase() ? p.toLowerCase() : p) : undefined);
+
+/**
+ * Product names in an outreach note come only from this customer's own purchases: the model writes {P1}..{P3}
+ * and this fills them in from trusted data, in order.
+ */
+export const fillProducts = (t: string, topProducts: string[]) =>
+  t.replace(/\{P([1-3])\}/g, (_, n) => niceProduct(topProducts[Number(n) - 1]) ?? 'your usual order');
+
+/**
+ * Checks a raw (placeholder) draft: the filled text must pass `checkDraft`, and the model must not have typed a
+ * product name itself. What this can't catch: a product name that is neither one of the shop's best-selling
+ * catalogue names nor the customer's own (an invented or very rare one). The UI labels the check with its scope.
+ */
+export function reviewDraft(raw: string, facts: { topProducts: string[]; catalog?: string[] }): string[] {
+  const p = checkDraft(fillProducts(raw, facts.topProducts), facts);
+  if (facts.topProducts.some((x) => x.length >= 6 && raw.toLowerCase().includes(x.toLowerCase())))
+    p.push('It typed a product name instead of using the placeholders.');
+  return p;
+}

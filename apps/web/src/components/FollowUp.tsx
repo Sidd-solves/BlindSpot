@@ -20,10 +20,13 @@ import {
 } from 'lucide-react';
 import { tool, usd } from '../api';
 import { useStore } from '../store';
+import { useAuth } from '../auth';
 import { useTool } from './useTool';
 import { AiWinback } from './AiWinback';
 import { Card, CountUp, Dropdown } from './ui';
 import {
+  assignShop,
+  assignedShop,
   useFollowUps,
   type CheckAccount,
   type FollowAccount,
@@ -51,6 +54,20 @@ type WB = {
     message: string;
   }[];
   total: number;
+  backtest?: {
+    ok: boolean;
+    reason?: string;
+    rule: string;
+    replays: {
+      asOf: string;
+      windowDays: number;
+      flagged: number;
+      flaggedStayedAway: number;
+      others: number;
+      othersStayedAway: number;
+      p: number;
+    }[];
+  };
 };
 type FU = Omit<FollowCheck, 'at' | 'checkedAgainst'> & {
   ok: boolean;
@@ -107,6 +124,7 @@ function download(name: string, rows: unknown[][]) {
 /** The four-step loop on top of Customer Radar: find quiet customers, pick who to contact, log it, then recheck. */
 export function FollowUp() {
   const { version, dataset } = useStore();
+  const { user, profile } = useAuth();
   const fu = useFollowUps();
   // "?practice=1" (from the site's "Try the loop" button) opens straight into the replay on past data.
   const [mode, setMode] = useState<'now' | 'replay'>(() =>
@@ -123,6 +141,9 @@ export function FollowUp() {
   // A recheck against data with a different name waits for the owner to confirm it's the same shop.
   const [confirmOther, setConfirmOther] = useState(false);
   const shopName = shop.trim() || 'our shop';
+  const [moveMsg, setMoveMsg] = useState<string | null>(null);
+  // Nothing from a previous account stays open after switching accounts or signing out.
+  useEffect(() => setActiveId(null), [user?.id]);
 
   const nowQ = useTool<WB>('win-back-list', { shopName: 'our shop' }, [version]);
   const end = nowQ.data?.asOf;
@@ -151,6 +172,7 @@ export function FollowUp() {
   const top = wb?.customers.reduce((m, c) => Math.max(m, c.share ?? 0), 0) ?? 0;
   const topC = wb?.customers.find((c) => (c.share ?? 0) === top);
 
+  const shopOf = () => profile?.shop_name?.trim() || dataset?.name || 'My shop';
   const start = () => {
     if (!wb || !since) return;
     const accounts: FollowAccount[] = wb.customers
@@ -160,7 +182,7 @@ export function FollowUp() {
         email: c.email,
         spend: c.spend,
         share: c.share ?? 0,
-        orders: c.orderDays ?? c.orders,
+        orders: c.orders,
         typicalGapDays: c.typicalGapDays ?? null,
         daysSilent: c.daysSilent,
         lastOrder: c.lastOrder,
@@ -174,6 +196,7 @@ export function FollowUp() {
       source: dataset?.name ?? 'Current data',
       replay: mode === 'replay',
       meta: {
+        shop: shopOf(),
         dataEnd: wb.asOf ?? '',
         currency: dataset?.currency ?? '',
         rule: RULE,
@@ -181,6 +204,8 @@ export function FollowUp() {
       },
       accounts,
     });
+    // The owner made this list from this export, so the export belongs to that shop.
+    if (mode === 'now') assignShop(dataset?.datasetId, l.meta.shop ?? '');
     setActiveId(l.id);
     setPicked(new Set());
   };
@@ -194,14 +219,17 @@ export function FollowUp() {
       immediate,
     );
   };
-  const otherData = !!active && !!dataset?.name && dataset.name !== active.source;
-  const recheck = async () => {
+  const listShop = active?.meta?.shop || active?.source || '';
+  // Identity is what the owner says, not the file name: two shops can both upload "orders.csv".
+  const unassigned = !!active && !active.replay && assignedShop(dataset?.datasetId) !== listShop;
+  const recheck = async (confirmed = false) => {
     if (!active) return;
-    if (active.replay && otherData)
+    if (active.replay && dataset?.name !== active.source)
       return setCheckReason(
         `This practice run was made from ${active.source}. Load that data on Data Sources to replay it; it can't be checked against ${dataset?.name}.`,
       );
-    if (otherData && !confirmOther) return setConfirmOther(true);
+    if (unassigned && !confirmed) return setConfirmOther(true);
+    if (confirmed) assignShop(dataset?.datasetId, listShop);
     setChecking(true);
     setCheckErr(null);
     setCheckReason(null);
@@ -331,6 +359,24 @@ export function FollowUp() {
         </div>
       </div>
 
+      {fu.where === 'account' && fu.browserCount > 0 && (
+        <div
+          className="mx-3.5 mb-2 flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11.5px]"
+          style={{ borderColor: 'var(--line)' }}
+        >
+          <span className="min-w-0 flex-1">
+            {fu.browserCount} list{fu.browserCount === 1 ? ' was' : 's were'} saved in this browser as a
+            guest. They aren’t part of your account unless you move them.
+            {moveMsg && <b> {moveMsg}</b>}
+          </span>
+          <button
+            className="btn !h-7 text-[11.5px]"
+            onClick={async () => setMoveMsg((await fu.moveBrowserLists()) ?? 'Moved.')}
+          >
+            Move them to my account
+          </button>
+        </div>
+      )}
       <div className="grid gap-3 px-3.5 pb-3.5 lg:grid-cols-12">
         {/* LEFT: find + decide, or act on the open list */}
         <div className="min-w-0 lg:col-span-7">
@@ -404,8 +450,8 @@ export function FollowUp() {
                         style={{ '--c': 'var(--amber)' } as CSSProperties}
                       >
                         <b>One account is {Math.round(top)}% of this total</b> ({topC.email ?? topC.customer},{' '}
-                        {topC.orderDays ?? topC.orders} order days). Check its history before reading the
-                        total as typical.
+                        {topC.orders} orders in the year). Check its history before reading the total as
+                        typical.
                       </div>
                     )}
                     <div className="mb-1 grid grid-cols-[18px_minmax(0,1fr)_92px_74px] gap-2 px-1 text-[10.5px] font-bold uppercase tracking-wide text-[var(--faint)]">
@@ -436,7 +482,7 @@ export function FollowUp() {
                             <span className="min-w-0">
                               <span className="block truncate font-semibold">{c.email ?? c.customer}</span>
                               <span className="block truncate text-[11px] text-[var(--faint)]">
-                                {c.orderDays ?? c.orders} order days
+                                {c.orders} orders in the year
                                 {c.typicalGapDays ? ` · usually every ${c.typicalGapDays} days` : ''} · silent{' '}
                                 {c.daysSilent} days
                               </span>
@@ -565,7 +611,7 @@ export function FollowUp() {
                               </motion.span>
                             </span>
                             <span className="block truncate text-[11px] text-[var(--faint)]">
-                              {usd(a.spend, true)} the year before · {a.orders} order days
+                              {usd(a.spend, true)} the year before · {a.orders} orders
                               {a.typicalGapDays ? ` · usually every ${a.typicalGapDays} days` : ''}
                               {a.note ? ' · has a note' : ''}
                             </span>
@@ -667,10 +713,12 @@ export function FollowUp() {
             checking={checking}
             err={checkErr}
             reason={checkReason}
-            onCheck={recheck}
+            onCheck={() => void recheck()}
             dataEnd={end}
-            otherData={otherData && confirmOther ? (dataset?.name ?? '') : null}
+            confirmShop={unassigned && confirmOther ? { shop: listShop, data: dataset?.name ?? '' } : null}
+            onConfirmShop={() => void recheck(true)}
             onCancelOther={() => setConfirmOther(false)}
+            backtest={!active && mode === 'now' ? nowQ.data?.backtest : undefined}
           />
         </div>
       </div>
@@ -688,8 +736,10 @@ function Recheck({
   reason,
   onCheck,
   dataEnd,
-  otherData,
+  confirmShop,
+  onConfirmShop,
   onCancelOther,
+  backtest,
 }: {
   list: FollowList | null;
   checking: boolean;
@@ -697,9 +747,11 @@ function Recheck({
   reason: string | null;
   onCheck: () => void;
   dataEnd?: string;
-  /** Set when the loaded data has a different name than the list's: the owner must confirm it's the same shop. */
-  otherData: string | null;
+  /** Set while the owner must say whether the loaded export is from this list's shop. */
+  confirmShop: { shop: string; data: string } | null;
+  onConfirmShop: () => void;
   onCancelOther: () => void;
+  backtest?: WB['backtest'];
 }) {
   const c = list?.last_check;
   const shell = (children: ReactNode) => (
@@ -716,6 +768,7 @@ function Recheck({
   if (!list)
     return shell(
       <div className="space-y-2 text-[12px] text-[var(--muted)]">
+        {backtest?.ok && <RuleBacktest bt={backtest} />}
         {[
           ['1', 'Tick the customers you’ll contact and start a list.'],
           ['2', 'Mark who you reached. The contact day is saved, and you can correct it.'],
@@ -760,7 +813,7 @@ function Recheck({
         <b className="text-[var(--text)]">{nice(list.since)}</b>.
       </div>
       <AnimatePresence>
-        {otherData && (
+        {confirmShop && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -768,12 +821,11 @@ function Recheck({
             className="mb-2 overflow-hidden rounded-lg border px-2.5 py-2 text-[11.5px]"
             style={{ borderColor: 'color-mix(in srgb, var(--amber) 55%, transparent)' }}
           >
-            This list was made from <b>{list.source}</b>; the loaded data is <b>{otherData}</b>. Customer IDs
-            only mean the same thing within one shop. Continue only if this is a newer export from the same
-            shop.
-            <div className="mt-1.5 flex gap-1.5">
-              <button className="btn btn-primary !h-7 text-[11.5px]" onClick={onCheck}>
-                Same shop, check it
+            Is <b>{confirmShop.data}</b> an export from <b>{confirmShop.shop}</b>? Customer IDs only mean the
+            same thing within one shop, and a file name can’t prove which shop a file came from.
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <button className="btn btn-primary !h-7 text-[11.5px]" onClick={onConfirmShop}>
+                Yes, it’s from {confirmShop.shop}
               </button>
               <button className="btn !h-7 text-[11.5px]" onClick={onCancelOther}>
                 Cancel
@@ -782,7 +834,7 @@ function Recheck({
           </motion.div>
         )}
       </AnimatePresence>
-      {!otherData && (
+      {!confirmShop && (
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={onCheck}
@@ -834,11 +886,20 @@ function Recheck({
             className="space-y-2"
           >
             <div className="flex items-center gap-3">
-              <MiniRing value={pct(c.orderedAgain, c.matched)} />
+              <MiniRing value={pct(c.orderedAgain, list.accounts.length)} />
               <div className="min-w-0">
                 <div className="text-[12.5px]">
                   <b className="mono text-[18px]">{c.orderedAgain}</b>{' '}
-                  <span className="text-[var(--muted)]">of {c.matched} ordered since the list</span>
+                  <span className="text-[var(--muted)]">
+                    of {list.accounts.length} listed had a recorded order since the list
+                  </span>
+                </div>
+                <div className="text-[11.5px] text-[var(--muted)]">
+                  {c.matched} found in this data ·{' '}
+                  <b className={c.unmatched.length ? 'text-[var(--text)]' : ''}>
+                    {c.unmatched.length} couldn’t be matched
+                  </b>
+                  {c.coverage?.thin ? ' · coverage has gaps' : ''}
                 </div>
                 <div className="text-[12px] text-[var(--muted)]">
                   <b className="mono text-[var(--text)]">{usd(c.salesAfter)}</b> in recorded orders over{' '}
@@ -1160,6 +1221,70 @@ function ConfirmButton({
       <Trash2 size={12} />
       {armed ? confirmLabel : label}
     </motion.button>
+  );
+}
+
+/** The exact quiet-customer rule, replayed on this shop's own past: who stayed away the next 180 days. */
+function RuleBacktest({ bt }: { bt: NonNullable<WB['backtest']> }) {
+  const fmtP = (p: number) => (p < 0.001 ? 'p < 0.001' : `p = ${p.toFixed(3)}`);
+  return (
+    <div className="mb-1 rounded-lg border px-2.5 py-2" style={{ borderColor: 'var(--line)' }}>
+      <div className="mb-1 flex items-center gap-1.5 text-[11.5px] font-bold text-[var(--text)]">
+        <History size={12} style={{ color: 'var(--violet)' }} /> This rule, tested on this shop’s past
+      </div>
+      {bt.replays.map((r, i) => {
+        const f = pct(r.flaggedStayedAway, r.flagged),
+          o = pct(r.othersStayedAway, r.others);
+        return (
+          <div key={r.asOf} className="mb-1.5 last:mb-0">
+            <div className="flex justify-between text-[11px]">
+              <span>
+                As of <b className="text-[var(--text)]">{nice(r.asOf)}</b> · no order in the next{' '}
+                {r.windowDays} days
+              </span>
+              <span className="mono">{fmtP(r.p)}</span>
+            </div>
+            {[
+              {
+                l: `Flagged (${r.flagged})`,
+                v: f,
+                t: `${r.flaggedStayedAway} of ${r.flagged}`,
+                c: 'var(--amber)',
+              },
+              {
+                l: `Other top customers (${r.others})`,
+                v: o,
+                t: `${r.othersStayedAway} of ${r.others}`,
+                c: 'var(--emerald)',
+              },
+            ].map((x, k) => (
+              <div
+                key={x.l}
+                className="mt-0.5 grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_88px] items-center gap-2 text-[10.5px]"
+              >
+                <span className="truncate">{x.l}</span>
+                <span className="h-1.5 rounded-full bg-[var(--line)]">
+                  <motion.span
+                    className="block h-1.5 rounded-full"
+                    style={{ background: x.c }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${x.v}%` }}
+                    transition={{ duration: 0.8, delay: 0.1 + i * 0.15 + k * 0.08 }}
+                  />
+                </span>
+                <span className="mono text-right">
+                  {x.v}% · {x.t}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      <div className="mt-1 text-[10.5px] text-[var(--faint)]">
+        Same rule as this list, using only earlier orders each time. One-sided Fisher exact test. The two
+        windows overlap, so they’re two looks at one shop. Most flagged customers still came back.
+      </div>
+    </div>
   );
 }
 

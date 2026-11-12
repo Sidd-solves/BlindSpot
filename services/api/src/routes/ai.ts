@@ -21,7 +21,7 @@ function productCatalog(ds: { rows: any[] }): string[] {
   return out;
 }
 import { getModel, type makeLlm } from '../llm';
-import { checkDraft, factCheck } from '../verify';
+import { factCheck, fillProducts, reviewDraft } from '../verify';
 import { aiCalls, recordAi } from '../ai-usage';
 
 /**
@@ -183,7 +183,7 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
       const cur = ctx.state.view().currency ?? 'USD';
       const facts = { ...c, spendText: money(c.spend, cur), shopName: p.data.shopName };
       const catalog = productCatalog(ctx.state.view());
-      const system = `Write a short, warm, specific email from a small shop owner to a regular customer who has not ordered in a while. Mention only products from topProducts. Never mention money, spend, order counts, dates or exact time periods, tracking or "data". Never say or imply they have left or stopped buying. No discounts or offers; offer help instead. Under 90 words, sign off as the shop. "why" = one sentence for the owner (not the customer) on why this customer is worth contacting, using only the given figures. ${UNTRUSTED_RULE}`;
+      const system = `Write a short, warm, specific email from a small shop owner to a regular customer who has not ordered in a while. Refer to products ONLY with the placeholders {P1}, {P2} and {P3} (this customer's topProducts, in order); never type a product name yourself. Never mention money, spend, order counts, dates or exact time periods, tracking or "data". Never say or imply they have left or stopped buying. No discounts or offers; offer help instead. Under 90 words, sign off as the shop. "why" = one sentence for the owner (not the customer) on why this customer is worth contacting, using only the given figures. ${UNTRUSTED_RULE}`;
       const schema = {
         type: 'object',
         additionalProperties: false,
@@ -198,7 +198,9 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
         1500,
       );
       const guard = { topProducts: c.topProducts ?? [], catalog };
-      let problems = checkDraft(`${out.subject}\n${out.body}`, guard);
+      const fill = (t: string) => fillProducts(t, guard.topProducts);
+      const review = (o: { subject: string; body: string }) => reviewDraft(`${o.subject}\n${o.body}`, guard);
+      let problems = review(out);
       let corrected = false;
       if (problems.length) {
         // One correction round, then give up honestly rather than show a note that failed its checks.
@@ -216,7 +218,7 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
           schema,
           1500,
         );
-        problems = checkDraft(`${out.subject}\n${out.body}`, guard);
+        problems = review(out);
       }
       if (problems.length)
         return res.json({
@@ -225,6 +227,7 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
           message: 'The AI draft failed its checks twice, so the plain template is shown instead.',
           model: getModel(),
         });
+      out = { ...out, subject: fill(out.subject), body: fill(out.body) };
       res.json({
         ...out,
         checks: { passed: true, corrected },

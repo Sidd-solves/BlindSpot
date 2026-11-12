@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkDraft } from '../services/api/src/verify';
+import { checkDraft, fillProducts, reviewDraft } from '../services/api/src/verify';
 
 const facts = {
   topProducts: ['WHITE HANGING HEART T-LIGHT HOLDER', 'JUMBO BAG RED RETROSPOT'],
@@ -26,5 +26,28 @@ describe('AI outreach draft guard (adversarial)', () => {
   });
   it('allows the products the customer really bought', () => {
     expect(checkDraft('Your Jumbo Bag Red Retrospot is waiting.', facts)).toEqual([]);
+  });
+});
+
+describe('product placeholders', () => {
+  it('fills product names only from the customer’s own purchases', () => {
+    expect(fillProducts('Your {P1} and {P2} are here. {P3}', facts.topProducts)).toBe(
+      'Your white hanging heart t-light holder and jumbo bag red retrospot are here. your usual order',
+    );
+  });
+  it('passes a placeholder draft and rejects a typed product name', () => {
+    expect(reviewDraft('Hi, your {P1} is back in stock. Thank you, Our Shop', facts)).toEqual([]);
+    expect(reviewDraft('Hi, your White Hanging Heart T-Light Holder is back.', facts).join(' ')).toMatch(
+      /typed a product name/,
+    );
+  });
+  it('rejects another catalogue product, even next to a placeholder', () => {
+    expect(reviewDraft('Loved the {P1}? Try our Regency Cakestand 3 Tier.', facts).join(' ')).toMatch(
+      /didn't usually buy/,
+    );
+  });
+  it('documents the blind spot: an invented product outside the catalogue is not caught', () => {
+    // This is why the UI says what the check covers instead of a blanket "verified".
+    expect(reviewDraft('Try our brand-new Galaxy Moon Lamp!', facts)).toEqual([]);
   });
 });

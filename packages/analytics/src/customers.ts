@@ -16,7 +16,7 @@
  */
 import type { Dataset, Row } from './types';
 import { detectFields } from './profile';
-import { propTest } from './stats';
+import { fisherGreater, propTest } from './stats';
 import { DAY, dateSpan, toMs } from './time';
 
 /** Same as the store checks, so the win-back list and the lapsed-customer finding agree exactly. */
@@ -28,6 +28,11 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10);
+/** Round .5 to the even neighbour, like Python's round(), so the app and the independent check agree to the day. */
+const roundHalfEven = (x: number) => {
+  const f = Math.floor(x);
+  return x - f === 0.5 ? (f % 2 === 0 ? f : f + 1) : Math.round(x);
+};
 
 interface Order {
   id: string;
@@ -234,7 +239,7 @@ export interface WinBack {
     spend: number;
     lastOrder: string;
     daysSilent: number;
-    /** Distinct days with an order, across all history before the list date. */
+    /** Distinct days with an order in the spending year. */
     orderDays?: number;
     /** Median days between those order days; null with a single order day. */
     typicalGapDays?: number | null;
@@ -284,9 +289,10 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
       products: new Map<string, number>(),
       days: [] as number[],
     };
-    const d = Math.floor(o.t / DAY);
-    if (e.days[e.days.length - 1] !== d) e.days.push(d);
     if (o.t >= yearStart && o.t < cutoff) {
+      // Order rhythm is read from the same year as the spend (as in scripts/validate_lapsed.py).
+      const d = Math.floor(o.t / DAY);
+      if (e.days[e.days.length - 1] !== d) e.days.push(d);
       e.rev += o.total;
       e.n++;
       for (const p of o.products) e.products.set(p, (e.products.get(p) ?? 0) + 1);
@@ -313,7 +319,7 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
       lastOrder: isoDay(e.last),
       daysSilent: Math.floor((end - DAY - e.last) / DAY),
       orderDays: e.days.length,
-      typicalGapDays: gaps.length ? Math.round(median(gaps)) : null,
+      typicalGapDays: gaps.length ? roundHalfEven(median(gaps)) : null,
       topProducts,
       message:
         `Hi there,\n\nWe noticed it's been a while since your last order with ${shopName}, and we wanted to say thank you ` +
@@ -544,4 +550,77 @@ export function followUpCheck(
     baseline: others ? { customers: others, orderedAgain: othersBack } : null,
     note,
   };
+}
+
+export interface QuietReplay {
+  asOf: string;
+  windowDays: number;
+  flagged: number;
+  flaggedStayedAway: number;
+  /** Other top customers (same top-10%, 3+ orders rule) who were still ordering on that date. */
+  others: number;
+  othersStayedAway: number;
+  /** One-sided Fisher exact test: flagged customers stayed away more often. */
+  p: number;
+}
+export interface QuietBacktest {
+  ok: boolean;
+  reason?: string;
+  rule: string;
+  replays: QuietReplay[];
+}
+
+/**
+ * The quiet-top-customer rule (the win-back list and its finding) replayed at two earlier dates, 6 and 9 months
+ * before the data ends, using only orders before each date. Outcome: who placed no order in the next 180 days,
+ * flagged customers vs the other top customers who were still ordering. Mirrors scripts/validate_lapsed.py.
+ */
+export function quietRuleBacktest(ds: Dataset): QuietBacktest {
+  const rule =
+    'Top 10% by spend (at least 10) in the year before the last 90 days, 3+ orders that year, no order in the last 90 days.';
+  const orders = ordersOf(ds);
+  const end = endOf(ds);
+  if (!orders.length) return { ok: false, reason: 'Needs dated sales with customer IDs.', rule, replays: [] };
+  const replays: QuietReplay[] = [];
+  for (const back of [275, 183]) {
+    const t = end - back * DAY;
+    const cutoff = t - 90 * DAY,
+      start = cutoff - 365 * DAY;
+    if (orders[0].t > start) continue;
+    const prior = new Map<string, { rev: number; n: number }>(),
+      last = new Map<string, number>();
+    for (const o of orders) {
+      if (o.t >= t) continue;
+      if (o.t >= start && o.t < cutoff) {
+        const e = prior.get(o.customer) ?? { rev: 0, n: 0 };
+        e.rev += o.total;
+        e.n++;
+        prior.set(o.customer, e);
+      }
+      last.set(o.customer, Math.max(last.get(o.customer) ?? o.t, o.t));
+    }
+    const ranked = [...prior]
+      .filter(([, e]) => e.rev > 0)
+      .sort((a, b) => b[1].rev - a[1].rev || (a[0] < b[0] ? -1 : 1));
+    const best = ranked.slice(0, Math.max(10, Math.ceil(ranked.length / 10)));
+    const lapsed = best.filter(([c, e]) => e.n >= 3 && last.get(c)! < cutoff);
+    const steady = best.filter(([c, e]) => e.n >= 3 && last.get(c)! >= cutoff);
+    const back180 = new Set(orders.filter((o) => o.t >= t && o.t < t + 180 * DAY).map((o) => o.customer));
+    const away = (g: typeof best) => g.filter(([c]) => !back180.has(c)).length;
+    const a1 = away(lapsed),
+      a2 = away(steady);
+    if (!lapsed.length || !steady.length) continue;
+    replays.push({
+      asOf: isoDay(t),
+      windowDays: 180,
+      flagged: lapsed.length,
+      flaggedStayedAway: a1,
+      others: steady.length,
+      othersStayedAway: a2,
+      p: fisherGreater(a1, lapsed.length, a2, steady.length),
+    });
+  }
+  return replays.length
+    ? { ok: true, rule, replays }
+    : { ok: false, reason: 'Needs about two years of orders to replay the rule on the past.', rule, replays };
 }

@@ -318,7 +318,8 @@ function DataFlow() {
                 fill="none"
                 stroke={n.c}
                 strokeWidth="1.5"
-                animate={{ r: [17, 21, 17], opacity: [0.8, 0.2, 0.8] }}
+                style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                animate={{ scale: [1, 1.24, 1], opacity: [0.8, 0.2, 0.8] }}
                 transition={{ duration: 2.2, repeat: Infinity }}
               />
               <circle cx={n.x} cy="30" r="15" fill="var(--panel-solid)" stroke={n.c} strokeWidth="1.5" />
