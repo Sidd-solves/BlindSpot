@@ -23,6 +23,19 @@
 
 Total spoken time is 123s of 165s. Every scene leaves room for its clicks, and the recheck scene leaves the most, because it has the most to show. Do one timed read-through with the real clicks before recording. If it runs over, cut the 2:25–2:38 scene first.
 
+**Interaction timing (measured):** a scripted run of the real clicks on the local build, case study loaded:
+
+| Step | Time |
+|---|---|
+| Home hero visible | 0.8s |
+| Load the case study and open Overview | 1.7s |
+| Customer Radar list and the rule validation panel ready | 0.9s |
+| Tick 4 and start the list | 0.3s |
+| "Write with AI": note written and checked | 4.5s |
+| Switch to practice, start and recheck | 1.3s |
+
+The only wait longer than a second is the AI note. In the 1:30 scene it fits inside the 5.5s left after the narration. To keep the take smooth, press "Write with AI" just before saying "Claude drafts".
+
 **Before recording:**
 - Browser at 1440×900, cursor highlight on.
 - Signed in, with the case study loaded (Data Sources → "Switch to this shop").
