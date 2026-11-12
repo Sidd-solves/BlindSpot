@@ -116,8 +116,8 @@ function CaseProof() {
             </div>
             <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--muted)]">
               Every pound traces to exact rows. One account is {CASE.topShare}% of that total with only{' '}
-              {CASE.topOrderDays} order days, which is why BlindSpot shows each account’s history, not just a
-              big number.
+              {CASE.topOrders} orders in that year, which is why BlindSpot shows each account’s history, not
+              just a big number.
             </p>
           </div>
           <QuietChart />
