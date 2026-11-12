@@ -283,7 +283,8 @@ export function ReadReview() {
   const problems = rep?.issues.filter((i) => i.severity !== 'info') ?? [];
   const cleaned = rep?.issues.filter((i) => i.severity === 'info') ?? [];
   const failed = !!upload.error;
-  const notes = upload.files.map((f) => f.note).filter(Boolean);
+  // "Check the columns below" only makes sense when there are columns to show.
+  const notes = rep?.columns?.length ? upload.files.map((f) => f.note).filter(Boolean) : [];
   const KIcon = upload.files[0]?.kind === 'pdf' ? FileText : FileSpreadsheet;
   return (
     <AnimatePresence>

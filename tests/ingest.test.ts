@@ -443,7 +443,10 @@ describe('missing information', () => {
     try {
       run('Date,Product,Customer\n2026-01-01,Mug,Ana\n2026-01-02,Bowl,Raj');
     } catch (e: any) {
-      expect(e.code).toBe('NO_MONEY');
+      // No column holds numbers at all, so the message says that (not "pick the money column"), and keeps what was
+      // read so a file with the amounts can be added.
+      expect(e.code).toBe('NO_AMOUNTS');
+      expect(e.message).toMatch(/no column of numbers/);
       expect(e.report.columns).toEqual(['Date', 'Product', 'Customer']);
     }
   });
