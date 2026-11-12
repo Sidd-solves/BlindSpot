@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 720px; overflow: hidden; font-family: Manrope, sans-serif; color: #fff;
+    background:
+      radial-gradient(900px 420px at 72% 108%, rgba(255,150,70,.55), transparent 65%),
+      radial-gradient(700px 380px at 20% 0%, rgba(124,92,255,.35), transparent 70%),
+      linear-gradient(180deg, #0b0a1d 0%, #24123a 48%, #5a2a3c 78%, #b45a3c 100%); }
+  .hills { position: absolute; inset: auto 0 0 0; height: 210px; }
+  .wrap { position: absolute; inset: 0; display: grid; grid-template-columns: 500px 1fr; align-items: center; padding: 0 80px; gap: 60px; }
+  .chart { position: relative; height: 360px; display: flex; align-items: flex-end; gap: 14px; padding: 26px 26px 0;
+    border-radius: 22px; background: rgba(10,10,26,.55); border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(8px); }
+  .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .t { background: linear-gradient(180deg, #7dd3fc, #6366f1); border-radius: 6px 6px 0 0; opacity: .9 }
+  .r { background: #fbbf24; box-shadow: 0 0 18px #fbbf24; border-radius: 0 0 4px 4px }
+  .legend { position: absolute; top: 18px; left: 26px; display: flex; gap: 18px; font: 600 15px 'JetBrains Mono', monospace; color: rgba(255,255,255,.75) }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 7px; vertical-align: -1px }
+  .tag { position: absolute; left: 290px; bottom: 74px; z-index: 2; font: 700 15px Manrope; color: #1a1206; background: #fbbf24; box-shadow: 0 0 24px rgba(251,191,36,.6);
+    border: 1px solid rgba(251,191,36,.5); padding: 6px 11px; border-radius: 999px }
+  h1 { font-size: 76px; line-height: .98; letter-spacing: -0.035em; font-weight: 800; text-shadow: 0 6px 40px rgba(0,0,0,.45) }
+  .g { background: linear-gradient(90deg, #c4b5fd, #67e8f9); -webkit-background-clip: text; background-clip: text; color: transparent }
+  .brand { margin-top: 34px; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 800 }
+  .logo { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #8b5cf6, #22d3ee); box-shadow: 0 0 30px -4px #8b5cf6 }
+  .brand span b { color: #67e8f9 }
+</style>
+</head>
+<body>
+  <svg class="hills" viewBox="0 0 1280 210" preserveAspectRatio="none">
+    <path d="M0 120 C 220 60 380 150 620 95 S 1020 40 1280 110 V210 H0Z" fill="#1d1030" opacity=".85"/>
+    <path d="M0 165 C 260 120 470 190 760 150 S 1100 120 1280 160 V210 H0Z" fill="#0e0818"/>
+  </svg>
+  <div class="wrap">
+    <div class="chart">
+      <div class="legend"><span><i style="background:#7dd3fc"></i>Total sales</span><span><i style="background:#fbbf24"></i>One regular</span></div>
+      <div class="tag">↙ went quiet</div>
+      <div class="col"><div class="t" style="height:38%"></div><div class="r" style="height:13%"></div></div>
+      <div class="col"><div class="t" style="height:42%"></div><div class="r" style="height:14%"></div></div>
+      <div class="col"><div class="t" style="height:41%"></div><div class="r" style="height:12%"></div></div>
+      <div class="col"><div class="t" style="height:49%"></div><div class="r" style="height:13%"></div></div>
+      <div class="col"><div class="t" style="height:55%"></div><div class="r" style="height:8%;opacity:.8"></div></div>
+      <div class="col"><div class="t" style="height:58%"></div><div class="r" style="height:4%;opacity:.55"></div></div>
+      <div class="col"><div class="t" style="height:64%"></div><div class="r" style="height:1.5%;opacity:.3"></div></div>
+      <div class="col"><div class="t" style="height:70%"></div></div>
+      <div class="col"><div class="t" style="height:76%"></div></div>
+    </div>
+    <div>
+      <h1>Your best customers don’t say <span class="g">goodbye.</span></h1>
+      <div class="brand">
+        <div class="logo">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        </div>
+        <span>Blind<b>spot</b></span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

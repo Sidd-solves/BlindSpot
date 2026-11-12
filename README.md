@@ -3,15 +3,26 @@
 > **Work in progress, not part of any hackathon submission.** This branch holds features built *after* the
 > submissions were made. Judges: please evaluate the submitted version on the `main` branch and the live site.
 
-[![CI](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml) ![Tests](https://img.shields.io/badge/tests-250%20passing-34d399) ![Coverage](https://img.shields.io/badge/coverage-84%25%20engine%20%2B%20API-22d3ee) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Lint](https://img.shields.io/badge/ESLint-0%20problems-8b5cf6) [![License: MIT](https://img.shields.io/badge/license-MIT-a78bfa)](LICENSE)
+[![CI](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml) ![Tests](https://img.shields.io/badge/tests-259%20passing-34d399) ![Coverage](https://img.shields.io/badge/coverage-84%25%20engine%20%2B%20API-22d3ee) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Lint](https://img.shields.io/badge/ESLint-0%20problems-8b5cf6) [![License: MIT](https://img.shields.io/badge/license-MIT-a78bfa)](LICENSE)
 
-**The AI analyst for small businesses. See what your sales data is hiding.**
+**Your best customers don't say goodbye. BlindSpot helps independent online shops find the valuable customers who have gone quiet, check the evidence, reach out, and see who comes back.**
 
-Live: **https://blindspot-8lr1.onrender.com** · Fact check: [docs/FACT_CHECK.md](docs/FACT_CHECK.md)
+## The problem
 
-[![Blindspot overview on a real UK online shop's sales](docs/screenshots/overview.jpg)](https://blindspot-8lr1.onrender.com)
+A regular customer doesn't announce they're leaving. They stop ordering, and the sales total still looks fine. That matters because repeat customers separate the shops that make money from those that don't: among 1,100+ owners, 29.0% of shops getting under a quarter of revenue from repeat buyers were unprofitable, against 7.7% of shops getting over half ([Small Business Expo, 2026](https://www.thesmallbusinessexpo.com/blog/repeat-customers-profitability/); an association, not proof). Yet 53% of small and mid-size businesses don't know what their own data could tell them ([AWS, 2023](https://aws.amazon.com/blogs/smb/why-small-and-medium-businesses-are-missing-out-on-the-full-benefits-data-can-provide)), and only 30% use CRM or loyalty data ([PYMNTS, 2026](https://www.pymnts.com/report/study/the-smb-growth-gap-what-leaders-track-that-others-miss/)). More sources: [docs/submission/WRITEUP.md](docs/submission/WRITEUP.md).
 
-Small business owners make big decisions on gut feeling, because analysts and BI tools are built for big companies. Blindspot connects to a **Shopify store** or a **CSV / Excel file** and, in seconds:
+## The loop: find, decide, act, recheck
+
+1. **Find** the top customers with no order in 90 days, each with their usual order rhythm and share of the total (so one big account can't pass for a trend).
+2. **Decide** who to contact after opening the exact rows behind every amount.
+3. **Act**: Claude drafts a short personal note for each. Log who you reached and keep notes. Nothing is sent for you.
+4. **Recheck** with a newer export: matched by exact customer ID, BlindSpot shows who ordered again and what they spent, with unmatched IDs listed and other customers as context. It never claims the contact caused the reorder.
+
+**Practice on past data** runs the whole loop on the case study's real history: a list made as of Sep 1, 2011 flagged 14 quiet top customers; 7 ordered again within 100 days (£16,044 in real orders), while 53% of other repeat customers also ordered in that window. Lists save to your account (Supabase, row-level security) or, as a guest, your browser.
+
+## Everything else it checks
+
+Blindspot connects to a **Shopify store** or a **CSV / Excel / PDF file** (or a photo of a table) and, in seconds:
 
 - **Cleans** the data: duplicates, returns, fees, orders reversed within 2 days, sales with no customer
 - **Finds** what's costing money: customer dependence, loss-making products, returns, lost best customers, products that stopped selling, shrinking orders, seasonality

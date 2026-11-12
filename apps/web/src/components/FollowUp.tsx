@@ -100,7 +100,10 @@ function download(name: string, rows: unknown[][]) {
 export function FollowUp() {
   const { version, dataset } = useStore();
   const fu = useFollowUps();
-  const [mode, setMode] = useState<'now' | 'replay'>('now');
+  // "?practice=1" (from the site's "Try the loop" button) opens straight into the replay on past data.
+  const [mode, setMode] = useState<'now' | 'replay'>(() =>
+    /[?&]practice=1/.test(location.hash) ? 'replay' : 'now',
+  );
   const [back, setBack] = useState(100);
   const [shop, setShop] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -121,7 +124,7 @@ export function FollowUp() {
   const active = fu.lists.find((l) => l.id === activeId) ?? null;
   // Pick the most recent list once lists load, so a returning owner lands on their work.
   useEffect(() => {
-    if (fu.loaded && activeId === null && fu.lists[0]) setActiveId(fu.lists[0].id);
+    if (fu.loaded && activeId === null && fu.lists[0] && mode === 'now') setActiveId(fu.lists[0].id);
   }, [fu.loaded]);
   // A new list (or mode) starts with nobody ticked: the owner decides, the tool doesn't pre-choose.
   useEffect(() => setPicked(new Set()), [wb]);
