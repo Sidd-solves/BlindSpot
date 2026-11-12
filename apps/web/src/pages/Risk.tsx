@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Target,
   Table2,
+  UserRoundCheck,
 } from 'lucide-react';
 import { useStore, type Finding } from '../store';
 import {
@@ -271,6 +272,22 @@ function Detail({ f, focusOnOpen = false }: { f: Finding; focusOnOpen?: boolean 
             See the affected rows
           </span>
           <span className="truncate text-[11px] font-semibold text-[var(--muted)]">{f.drill.label}</span>
+        </motion.button>
+      )}
+      {f.id === 'store-lapsed' && (
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          whileHover={{ x: 2 }}
+          onClick={() => go('customers')}
+          className="btn w-full justify-between !h-9"
+        >
+          <span className="flex items-center gap-1.5">
+            <UserRoundCheck size={13} style={{ color: 'var(--violet)' }} />
+            Pick who to contact, then recheck later
+          </span>
+          <span className="truncate text-[11px] font-semibold text-[var(--muted)]">
+            Customer Radar · Follow-up
+          </span>
         </motion.button>
       )}
       <div className="tint rounded-lg p-2.5" style={{ '--c': 'var(--emerald)' } as CSSProperties}>

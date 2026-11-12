@@ -596,7 +596,7 @@ export function storeFindings(ds: Dataset, fm: FieldMap, rec: (r: CheckRun) => v
         ? 'Their revenue in the year before they went quiet (annual exposure)'
         : `Their spending over the ${obsMonths} months of data before they went quiet (less than a year of history, so not annualized)`,
       nextAction:
-        'Contact these accounts personally this week; offer a reorder incentive and ask what changed.',
+        'Contact these accounts personally this week and ask what changed; then recheck them with your next export.',
     });
   }
 
