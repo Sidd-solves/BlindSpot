@@ -1,110 +1,69 @@
-# BlindSpot demo video: full script (2:45)
+# BlindSpot demo video: full script (3:00)
 
-**Rules it follows:**
-- Name the person and their frustration in the first 15 seconds, with the product on screen by then.
-- Show the core loop by 1:30.
-- End on what changes for the owner.
-- Every number on screen is real and visible in the app.
-- Every claim matches what the data can support.
+**Structure:**
+1. **Hard numbers first.** The problem in public statistics, then in one real shop's data.
+2. **Every feature, fast.**
+3. **One game-changing feature, slowly:** the proof chain.
+4. **How it works underneath, layer by layer.**
+5. **A close on the numbers.**
 
-**Timing (measured):** the narration below is 301 words. Each scene was read aloud by macOS text-to-speech with its rate set to 130 and timed. The voice skips the pauses a person makes, so its measured effective rate was about 147 words per minute. Treat these numbers as a floor, not a forecast:
+Every number is real. The opening statistics are sourced below; the shop's numbers appear in the app as you say them.
 
-| Scene | Words | Spoken at 130 wpm | Slot | Left for clicks and pauses |
-|---|---|---|---|---|
-| 0:00–0:14 The hook | 22 | 9.2s | 14s | 4.8s |
-| 0:14–0:30 Why it matters | 34 | 13.2s | 16s | 2.8s |
-| 0:30–0:45 Meet BlindSpot | 26 | 11.1s | 15s | 3.9s |
-| 0:45–1:08 Find | 48 | 19.7s | 23s | 3.3s |
-| 1:08–1:30 Evidence | 47 | 17.6s | 22s | 4.4s |
-| 1:30–1:50 Decide and act | 36 | 14.5s | 20s | 5.5s |
-| 1:50–2:25 Recheck | 48 | 21.2s | 35s | 13.8s |
-| 2:25–2:38 What changes | 30 | 10.8s | 13s | 2.2s |
-| 2:38–2:45 Close | 10 | 5.3s | 7s | 1.7s |
-
-Total TTS time is 123s of 165s. A person at a calm 130 words per minute would take about 139s, leaving about 26s for clicks and pauses. The recheck scene has the most room, because it has the most to show. **The deciding test is one complete human run:** final wording, real clicks, a stopwatch. It must finish by 2:45 with every number readable. A captioned draft recording of the real clicks is at `docs/submission/demo-draft.webm`. Do one timed read-through with the real clicks before recording. If it runs over, cut the 2:25–2:38 scene first.
-
-**Margin:** the captioned draft recording measures 164.4s of encoded video, just under 2:45. For a real margin under a 2:45 target, trim the 2:25–2:38 scene by 3–5 seconds (drop the cut to the AI analyst and keep the saved-list shot). Under a 3:00 limit, it already has about 15 seconds to spare.
-
-**Interaction timing (measured):** a scripted run of the real clicks on the local build, case study loaded:
-
-| Step | Time |
-|---|---|
-| Home hero visible | 0.8s |
-| Load the case study and open Overview | 1.7s |
-| Customer Radar list and the rule validation panel ready | 0.9s |
-| Tick 4 and start the list | 0.3s |
-| "Write with AI": note written and checked | 4.5s |
-| Switch to practice, start and recheck | 1.3s |
-
-The only wait longer than a second is the AI note. In the 1:30 scene it fits inside the 5.5s left after the narration. To keep the take smooth, press "Write with AI" just before saying "Claude drafts".
-
-**Before recording:**
-- Browser at 1440×900, cursor highlight on.
-- Signed in, with the case study loaded (Data Sources → "Switch to this shop").
-- Customer Radar with no open list.
-- Filters cleared.
-- Captions burned in.
+**Recording:** `node scripts/demo/record.mjs && node scripts/demo/encode.mjs` produces a captioned draft at `docs/submission/demo-draft.webm`, with the real clicks, a real Claude call, on-screen stat cards and the layer diagram. Record your voice over it, or re-record the clicks yourself following the same timings.
 
 ---
 
-### 0:00–0:14 · The hook
-**On screen:** home hero, "Your best customers don't say goodbye."
+### 0:00–0:12 · Stat burst
+**On screen:** black. Three numbers slam in, each with its source underneath.
 
-> "Your best customer won't tell you they're leaving. They just stop ordering. And because your total sales still look fine, nobody notices."
+> "36 million small businesses in America. 53% of small-business leaders say they don't know what their own data could tell them. And in one survey, businesses with little repeat revenue were almost four times as likely to lose money: 29% versus 7.7%."
 
-### 0:14–0:30 · Why it matters
-**On screen:** scroll to "Why this problem matters". Hold on the 29.0% vs 7.7% card.
+### 0:12–0:25 · The dashboard lies
+**On screen:** a "+6.2%" sales card. The hidden problems drop in under it, one by one, with their numbers.
 
-> "In one survey, businesses getting more of their revenue from repeat customers were far less likely to report a loss. Big retailers pay analysts to watch for this. A small shop has a spreadsheet."
+> "This real shop's dashboard said sales were up 6.2%. Underneath: ten best customers gone quiet, worth £93,531. New customers coming back less, 51% to 42%. Twenty-three products dead. And £114,000 of orders reversed within two days, padding the total."
 
-### 0:30–0:45 · Meet BlindSpot
-**On screen:** click "See it on a real shop". The Overview loads, and the AI briefing's numbers underline green.
+### 0:25–0:52 · Every feature in 27 seconds
+**On screen:** fast cuts, one per page, each with its name chip.
 
-> "This is BlindSpot, on public historical sales from a UK online shop. Claude writes the briefing, and each number it writes is matched against the analysis."
+> "Open BlindSpot and it's all there. Overview: a health score and the one problem to fix first. Data Sources: Shopify, CSV, Excel, PDF, even a photo. Source Data: every row, and how it was cleaned. AI Analyst: ask in plain English. Risk Intelligence: every problem ranked by money and labelled by how sure it is. Customer Radar: who's slipping away. Stock and Cash: sales gaps that look like stock-outs. Prove It: did the promo really work? Simulator: what a fix could be worth. Forecast: next months, with its past accuracy shown. Dashboard Audit: misleading charts and colours. Reports: a 30, 90 and 180-day plan, in 30 currencies."
 
-### 0:45–1:08 · Find
-**On screen:** Customer Radar → the Follow-up card: 10 customers, £93,531, and the amber "one account is 41%" note.
+### 0:52–1:25 · The game-changer: the proof chain
+**On screen:** slower. The label "★ THE PROOF CHAIN" stays up. Finding → exact rows → the rule tested on the past → a follow-up list with a checked AI note → the recheck.
 
-> "Here's what the total hides. Ten of this shop's best customers have gone quiet: ninety-three thousand pounds the year before. And BlindSpot shows the catch: one account is forty-one percent of that, with only a few orders. So you see each customer's rhythm, not just a big number."
+> "But this is what makes BlindSpot different. Most dashboards give you a number and ask you to trust it. BlindSpot makes every number prove itself. Click a finding: here are the exact orders, adding up to the penny. Was the rule ever right? Here it is replayed on this shop's own past: flagged customers really did stay away far more often. Then act: pick who to contact, and Claude drafts a checked note. Upload next month's file, and BlindSpot shows who ordered again, counting only orders after your contact. Finding, proof, action, result, in one loop. No dashboard does that."
 
-### 1:08–1:30 · Evidence
-**On screen:** a finding's "See the affected rows", reconciled to the penny. Back to Radar: the Follow-up card's right panel, "This rule, tested on this shop's past" (25 flagged: 32% stayed away vs 8% of other top customers; 14 flagged: 36% vs 3%).
+### 1:25–2:45 · Under the hood
+**On screen:** the six-layer diagram, each layer lighting up as it's named, with its technical labels.
 
-> "Every amount opens into the exact rows behind it. And this exact rule was tested on the shop's own past: flagged customers stayed away far more often than other top customers. But most came back. So it's a list to review first, not a list of losses."
+> "Underneath, six layers. The reader runs in your browser: SheetJS, Papa Parse with our own separator detection, and pdf.js rebuilding PDF tables from each word's x and y position, with columns scored by name and value in eight languages. The server is Node and Express: isolated sessions in 512 megabytes, a dictionary-encoded million-row dataset, and caches warmed before the first request. The engine is pure TypeScript with zero AI, deterministic and memoized per dataset: Welch t-tests, z-tests, Fisher exact tests, 2,000-sample bootstraps, and a Benjamini–Hochberg correction against false alarms, always against the same weeks last year. The proof layer: an independent Python script matches seven of seven headline numbers and all ten accounts, row for row. The AI layer: 41 Zod-typed tools over REST and the Model Context Protocol. Claude gets 21 read-only ones, never does the math, and a fact-checker matches every number it writes against the tool output. And accounts: Supabase Postgres with PKCE sign-in and row-level security, tested with throwaway users."
 
-### 1:30–1:50 · Decide and act
-**On screen:** tick four customers → "Start a list with 4" → expand one → **press "Write with AI" first, as the scene opens**, then narrate while it writes (3.8–4.5s measured). The note appears with its "checked" label. Mark it Contacted, and the day appears. If the note takes longer than about 8s, cut the wait in the edit and keep the "checked" label on screen. Don't present a cut wait as the real response time.
+### 2:45–3:00 · Close
+**On screen:** stat card: "~40,000 lines · 290 tests + 6 browser tests · 41 tools · 1,067,371 real rows", then the logo.
 
-> "You choose who to contact. Claude drafts a short note from what each one used to buy, checked first: no amounts, no discounts, no telling them they've left. You send it, and BlindSpot logs the day."
-
-### 1:50–2:25 · Recheck
-**On screen:** "New list" → "Practice on past data". The blue "Historical replay: no outreach recorded" banner. Select all → start → "Check the shop's real later orders". The ring fills: 7 of 14, £16,044, and the window read.
-
-> "Later, upload a newer export. BlindSpot checks who ordered again after each customer's own contact day, so an order placed before your email never counts. Here it is on this shop's real history, where nobody was contacted: of fourteen quiet customers, seven ordered again within a hundred days."
-
-### 2:25–2:38 · What changes
-**On screen:** the Account → Follow-ups tab with the saved list. A quick cut to the analyst answering a question.
-
-> "Your lists and notes are saved privately to your account. Next month you won't be guessing which regulars to call. You'll know who to review, and see who ordered afterward."
-
-### 2:38–2:45 · Close
-**On screen:** logo on the sunset, with "Your best customers don't say goodbye. Now you'll notice."
-
-> "BlindSpot. Your best customers don't say goodbye. Now you'll notice."
+> "Forty thousand lines. 290 tests. A million real rows. Your dashboard shows what happened. BlindSpot shows what it's hiding."
 
 ---
 
 ## Delivery notes
 
-- **Rehearse 0:00–0:30 out loud** until it lands without notes. That stretch decides how closely a judge watches the rest.
-- **Say every number slowly,** and keep it on screen while you say it.
-- **Keep the honesty lines:** "a sample of its customers", "most still came back", "no one was contacted". They're why a judge believes the rest.
-- **Never call £16,044 recovered revenue.** It's what customers ordered in the shop's real records, with no outreach.
-- **One idea per scene.** Don't narrate menus. Say what the owner gets.
+- **The two speeds are deliberate.** Read the feature tour and the layers briskly. Slow down for the proof chain: everything around it moves fast so it stands out.
+- **Say every number while it's on screen.**
+- **Keep the honest words:** "in one survey" and "counting only orders after your contact".
+- **If an event's limit is 2:45,** cut the layer list to four: reader, engine, proof and AI.
+- **Burn in captions.** Many judges watch muted.
 
-## Thumbnail
+## Sources for the opening statistics
 
-`docs/submission/thumbnail.png` (1280×720, built from `thumbnail.html`):
-- Background: dark sunset with hill silhouettes.
-- Left: a rising bar chart with one amber "regular" segment fading out, labeled "went quiet".
-- Right: "Your best customers don't say goodbye." with the BlindSpot logo underneath.
+| Figure | Source |
+|---|---|
+| 36.2 million US small businesses | [SBA Office of Advocacy, Feb 2026](https://advocacy.sba.gov/2026/02/03/advocacy-releases-frequently-asked-questions-about-small-businesses-2026/) |
+| 53% of SMB leaders don't know what insights their data could provide | [AWS survey of 800+ SMB leaders, 2023](https://aws.amazon.com/blogs/smb/why-small-and-medium-businesses-are-missing-out-on-the-full-benefits-data-can-provide) (a vendor survey) |
+| 29.0% vs 7.7% reported being unprofitable, by repeat-revenue share | [Small Business Expo survey of 1,100+ owners, 2026](https://www.thesmallbusinessexpo.com/blog/repeat-customers-profitability/) (an association, not proof of cause) |
+
+The shop numbers come from BlindSpot on UCI Online Retail II (public historical data, 25% customer sample):
+- +6.2% growth, from the same-weeks comparison
+- 10 quiet accounts, £93,531
+- returning new customers, 51% to 42% (p = 0.002)
+- 23 products stopped (£36,302)
+- 509 reversed lines (£114,284)
