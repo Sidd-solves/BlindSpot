@@ -62,7 +62,7 @@ function EvidenceRow({ e, i }: { e: (typeof EVIDENCE)[number]; i: number }) {
       animate={seen ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.55, delay: i * 0.1 }}
       whileHover={{ y: -3 }}
-      className="panel card-live relative flex h-full flex-col overflow-hidden px-4 py-3.5"
+      className="panel card-live relative flex h-full flex-col overflow-clip px-4 py-3.5"
       style={{ '--c': e.c } as CSSProperties}
     >
       <div className="card-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
@@ -214,7 +214,7 @@ export function SolutionLoop() {
           <Reveal key={s.t}>
             <motion.div
               whileHover={{ y: -4 }}
-              className="panel card-live relative h-full overflow-hidden p-4"
+              className="panel card-live relative h-full overflow-clip p-4"
               style={{ '--c': s.c } as CSSProperties}
             >
               <div className="card-edge pointer-events-none absolute inset-x-0 top-0 h-px" />

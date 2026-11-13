@@ -50,7 +50,7 @@ export function AiBriefing() {
   return (
     <motion.div
       variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-      className="panel relative overflow-hidden p-3 md:col-span-6 xl:col-span-12"
+      className="panel relative overflow-clip p-3 md:col-span-6 xl:col-span-12"
       style={{ borderColor: 'color-mix(in srgb, var(--fuchsia) 35%, var(--line))' }}
     >
       <motion.div

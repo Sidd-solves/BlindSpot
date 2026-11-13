@@ -38,7 +38,7 @@ export function Card({
         e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
         e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
       }}
-      className={`panel card-live relative overflow-hidden ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`panel card-live relative overflow-clip ${onClick ? 'cursor-pointer' : ''} ${className}`}
       style={{ ...(c ? ({ '--c': c } as CSSProperties) : {}), ...style }}
     >
       {c && (

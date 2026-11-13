@@ -536,7 +536,7 @@ function Vision() {
               setDrag(false);
               handle(e.dataTransfer.files[0]);
             }}
-            className="relative grid min-h-[170px] cursor-pointer place-items-center overflow-hidden rounded-xl border-2 border-dashed text-center transition-colors"
+            className="relative grid min-h-[170px] cursor-pointer place-items-center overflow-clip rounded-xl border-2 border-dashed text-center transition-colors"
             style={{
               borderColor: drag ? 'var(--cyan)' : 'var(--line-strong)',
               background: drag ? 'color-mix(in srgb, var(--cyan) 8%, transparent)' : 'transparent',
