@@ -1,11 +1,11 @@
 # Render Blueprint for the iTax build: a separate service from the original BlindSpot site,
-# deployed from the `itax` branch. New → Blueprint → pick this repo and branch.
+# deployed from the `main` branch. New → Blueprint → pick this repo and branch.
 services:
   - type: web
     name: blindspot-pro
     runtime: docker
     plan: free
-    branch: itax
+    branch: main
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     autoDeploy: true
