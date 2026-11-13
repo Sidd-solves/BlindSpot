@@ -19,6 +19,7 @@ import { CountUp, Reveal, Ring } from '../components/ui';
 import { Aurora, BeamCard, Marquee } from './Effects';
 import { HorizontalGallery, KineticTitle, Magnetic, PinnedStory, ProofTicker } from './Scroll';
 import { RowRiver } from './RowRiver';
+import { ProblemEvidence, SolutionLoop } from './Problem';
 import { SampleNotice } from './SampleNotice';
 import { CATCHES } from './content';
 import { openApp, siteGo } from './SiteLayout';
@@ -146,16 +147,16 @@ export default function Home() {
                 animate={{ opacity: [1, 0.3, 1] }}
                 transition={{ duration: 1.6, repeat: Infinity }}
               />
-              AI analyst for small online shops
+              For independent online shops
             </motion.div>
             <KineticTitle
               className="text-glow mt-5 text-[clamp(40px,6.2vw,84px)] font-extrabold leading-[0.98] tracking-[-0.035em]"
               lines={[
-                ['Find', 'what', 'your'],
-                ['sales', 'are'],
+                ['Your', 'best', 'customers'],
+                ['don’t', 'say'],
                 [
                   <span key="h" className="grad-text">
-                    hiding.
+                    goodbye.
                   </span>,
                 ],
               ]}
@@ -166,8 +167,9 @@ export default function Home() {
               transition={{ delay: 0.85 }}
               className="mt-5 max-w-lg text-[15px] leading-relaxed text-[var(--muted)]"
             >
-              Drop in your store's export. Blindspot finds what's quietly costing you money, proves each
-              amount down to the rows, and Claude explains it, with every figure checked.
+              They just stop ordering, while your sales total still looks fine. BlindSpot reads your sales
+              export, finds the valuable customers who have gone quiet, proves it down to the rows, and helps
+              you reach out and see who comes back.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -237,6 +239,9 @@ export default function Home() {
         </motion.button>
       </section>
 
+      <ProblemEvidence />
+      <SolutionLoop />
+
       {/* Marquee */}
       <section className="mx-auto max-w-6xl px-4 md:px-6">
         <div className="label mb-2 text-center">Ten areas checked whenever your data allows</div>
@@ -247,69 +252,6 @@ export default function Home() {
       <RowRiver />
       <ProofTicker />
       <HorizontalGallery />
-
-      {/* Problem: bento with varied shapes */}
-      <section className="mx-auto max-w-6xl px-4 py-16 md:px-6">
-        <Reveal>
-          <div className="label" style={{ color: 'var(--rose)' }}>
-            The problem
-          </div>
-          <h2 className="mt-1.5 max-w-2xl text-[26px] font-extrabold leading-tight tracking-tight md:text-[34px]">
-            Small shops run on gut feeling. The expensive problems hide in plain sight.
-          </h2>
-        </Reveal>
-        <div className="mt-6 grid gap-3 md:grid-cols-3 md:grid-rows-2">
-          <Reveal className="md:row-span-2">
-            <BeamCard c="var(--rose)" className="flex h-full flex-col justify-between p-5">
-              <div>
-                <div className="text-[18px] font-extrabold">Dashboards show what happened.</div>
-                <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
-                  A chart of sales going up feels good. It won't tell you your best customer stopped ordering
-                  last month.
-                </p>
-              </div>
-              <div className="mt-6 flex h-24 items-end gap-1.5">
-                {[38, 46, 41, 55, 62, 58, 70, 76, 81, 88].map((h, i) => (
-                  <motion.div
-                    key={i}
-                    className="flex-1 rounded-t"
-                    style={{
-                      background:
-                        i === 7 ? 'var(--rose)' : 'color-mix(in srgb, var(--violet) 55%, transparent)',
-                      boxShadow: i === 7 ? '0 0 16px var(--rose)' : 'none',
-                    }}
-                    initial={{ height: 0 }}
-                    whileInView={{ height: `${h}%` }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06, type: 'spring' }}
-                  />
-                ))}
-              </div>
-              <div className="mt-2 text-[11.5px] text-[var(--faint)]">
-                Total keeps rising… while one key account quietly disappears.
-              </div>
-            </BeamCard>
-          </Reveal>
-          <Reveal className="md:col-span-2">
-            <BeamCard c="var(--amber)" className="h-full p-5">
-              <div className="text-[16px] font-extrabold">Analysts are for big companies.</div>
-              <p className="mt-1.5 text-[13px] text-[var(--muted)]">
-                Large retailers pay data teams to hunt for these problems every week. A small shop gets a
-                spreadsheet and a hunch.
-              </p>
-            </BeamCard>
-          </Reveal>
-          <Reveal className="md:col-span-2">
-            <BeamCard c="var(--violet)" className="h-full p-5">
-              <div className="text-[16px] font-extrabold">The costly problems are quiet.</div>
-              <p className="mt-1.5 text-[13px] text-[var(--muted)]">
-                Returns, lost customers and products that stopped selling don't announce themselves. They just
-                slowly drain money.
-              </p>
-            </BeamCard>
-          </Reveal>
-        </div>
-      </section>
 
       {/* Steps teaser */}
       <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6">

@@ -15,7 +15,9 @@ import {
   Store,
   Trash2,
   UserRound,
+  UserRoundCheck,
 } from 'lucide-react';
+import { useFollowUps } from '../lib/followups';
 import { useAuth, type Profile, type SavedAnalysis } from '../auth';
 import { useStore } from '../store';
 import { usd } from '../api';
@@ -27,6 +29,7 @@ const PENALTY: Record<string, number> = { critical: 20, high: 10, medium: 5, low
 const TABS = [
   { id: 'profile', label: 'Profile', icon: UserRound, c: 'var(--violet)' },
   { id: 'saved', label: 'Saved analyses', icon: Bookmark, c: 'var(--cyan)' },
+  { id: 'followups', label: 'Follow-ups', icon: UserRoundCheck, c: 'var(--amber)' },
   { id: 'security', label: 'Security', icon: ShieldCheck, c: 'var(--emerald)' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
@@ -380,8 +383,9 @@ export default function Account() {
   const { ready, user } = useAuth();
   const [tab, setTab] = useState<Tab>(
     () =>
-      (['profile', 'saved', 'security'] as const).find((t) => location.hash.includes(`tab=${t}`)) ??
-      'profile',
+      (['profile', 'saved', 'followups', 'security'] as const).find((t) =>
+        location.hash.includes(`tab=${t}`),
+      ) ?? 'profile',
   );
   if (!ready) return <div className="skeleton h-40" />;
   if (!user) return <GuestAccount />;
@@ -426,11 +430,74 @@ export default function Account() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
             >
-              {tab === 'profile' ? <ProfileTab /> : tab === 'saved' ? <SavedTab /> : <SecurityTab />}
+              {tab === 'profile' ? (
+                <ProfileTab />
+              ) : tab === 'saved' ? (
+                <SavedTab />
+              ) : tab === 'followups' ? (
+                <FollowUpsTab />
+              ) : (
+                <SecurityTab />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
       </Card>
+    </div>
+  );
+}
+
+/** Every follow-up list on this account: who was contacted and, after a recheck, who ordered again. */
+function FollowUpsTab() {
+  const fu = useFollowUps();
+  if (!fu.loaded) return <div className="skeleton h-24" />;
+  if (!fu.lists.length)
+    return (
+      <Empty icon={<UserRoundCheck size={20} />} title="No follow-up lists yet">
+        On Customer Radar, tick the quiet customers you’ll contact and start a list. It saves here.
+      </Empty>
+    );
+  return (
+    <div className="space-y-1.5">
+      {fu.lists.map((l, i) => {
+        const done = l.accounts.filter((a) => a.status === 'contacted').length;
+        const c = l.last_check;
+        return (
+          <motion.a
+            key={l.id}
+            href="#/customers"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            className="row-hover grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-[12px]"
+            style={{ borderColor: 'var(--line)' }}
+          >
+            <span className="min-w-0">
+              <span className="block truncate font-bold">{l.name}</span>
+              <span className="block truncate text-[11px] text-[var(--faint)]">
+                {l.accounts.length} customers · {done} contacted · {l.source}
+              </span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-1.5 w-20 rounded-full bg-[var(--line)]">
+                <motion.span
+                  className="block h-1.5 rounded-full"
+                  style={{ background: 'var(--amber)' }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${l.accounts.length ? (done / l.accounts.length) * 100 : 0}%` }}
+                />
+              </span>
+              {c ? (
+                <Chip c="var(--emerald)">
+                  {c.orderedAgain} of {c.matched} ordered again
+                </Chip>
+              ) : (
+                <Chip c="var(--faint)">Not rechecked</Chip>
+              )}
+            </span>
+          </motion.a>
+        );
+      })}
     </div>
   );
 }
