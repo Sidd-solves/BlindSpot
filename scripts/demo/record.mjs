@@ -46,8 +46,13 @@ const mark = (l) => log.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${l}`);
 await p.goto('http://localhost:5173/'); await p.getByText('goodbye.').first().waitFor(); await cap(0); mark('hook');
 await at(14);
 // 0:14 why it matters
-await cap(1); await p.evaluate(() => document.getElementById('problem').scrollIntoView({ behavior: 'smooth' }));
-await p.waitForTimeout(1800); await p.mouse.wheel(0, 380); mark('why'); await at(30);
+await cap(1);
+// Hold on the one statistic the narration names (29.0% vs 7.7%), centred on screen.
+await p.evaluate(() => {
+  const el = [...document.querySelectorAll('div')].find((d) => d.textContent?.trim().startsWith('Repeat revenue and profit'));
+  el?.closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+mark('why'); await at(30);
 // 0:30 meet
 await cap(2); await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' })); await p.waitForTimeout(900);
 await p.getByText('See it on a real shop').first().click(); await p.waitForTimeout(5000); mark('overview'); await at(45);
@@ -78,8 +83,10 @@ await p.getByRole('button', { name: /Check the shop/ }).click({ force: true });
 await p.getByText(/listed had a recorded later order/).waitFor({ timeout: 60000 }); mark('recheck'); await at(145);
 // 2:25 what changes: saved lists
 await cap(7);
-const dd = p.getByText(/^Practice run · /).first();
-if (await dd.count()) await dd.click({ force: true });
+// Open the saved-list picker so both lists (the real one and the practice run) are on screen.
+await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+await p.waitForTimeout(500);
+await p.locator('button', { hasText: /^Practice run · / }).first().click({ force: true });
 mark('lists'); await at(158);
 // 2:38 close
 await cap(8); await p.evaluate(() => (location.hash = '/home')); await p.waitForTimeout(300);

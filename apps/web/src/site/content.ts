@@ -99,7 +99,7 @@ export const CASE = {
   accounts: 10,
   spendText: '£93,531',
   topShare: 41,
-  topOrderDays: 2,
+  topOrders: 3,
   replay: {
     since: 'Sep 1, 2011',
     listed: 14,
