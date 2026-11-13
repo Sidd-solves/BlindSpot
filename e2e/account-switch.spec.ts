@@ -75,7 +75,8 @@ async function mockSupabase(page: Page, state: { current: 'A' | 'B' | null }) {
       state.current = null;
       return route.fulfill({ status: 204, body: '' });
     }
-    if (url.includes('/auth/v1/user')) return json(state.current === 'B' ? user(B.id, B.email) : user(A.id, A.email));
+    if (url.includes('/auth/v1/user'))
+      return json(state.current === 'B' ? user(B.id, B.email) : user(A.id, A.email));
     if (url.includes('/rest/v1/profiles'))
       return json(
         state.current
@@ -118,7 +119,11 @@ test('switching accounts never shows the previous account’s lists or notes', a
         sessionStorage.setItem('__seeded', '1');
       }
     },
-    [KEY, JSON.stringify(session(A.id, A.email)), JSON.stringify([list('GUEST', 'GUEST-CUSTOMER-333', 'GUEST-NOTE')])],
+    [
+      KEY,
+      JSON.stringify(session(A.id, A.email)),
+      JSON.stringify([list('GUEST', 'GUEST-CUSTOMER-333', 'GUEST-NOTE')]),
+    ],
   );
   await page.goto('/#/customers');
   await expect(page.getByText('Saved to your account')).toBeVisible();

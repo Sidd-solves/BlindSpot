@@ -121,7 +121,9 @@ test('changing a filter while an answer is late never shows the old list next to
   expect(held).toBeGreaterThan(0);
   expect(seen.has('loading') || seen.has('new')).toBe(true); // the late-answer window really happened
   // Once released, the German answer is shown, and still never the UK one.
-  await expect(page.getByText(/top customers with no order in 90 days|No customer history|Needs at least/).first()).toBeVisible();
+  await expect(
+    page.getByText(/top customers with no order in 90 days|No customer history|Needs at least/).first(),
+  ).toBeVisible();
   await expect(page.locator('main')).not.toContainText(LAPSED);
 });
 
