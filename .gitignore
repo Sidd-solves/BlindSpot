@@ -14,3 +14,7 @@ docs/slides/png_short/
 coverage/
 test-results/
 playwright-report/
+
+# Draft demo recording (large, regenerate with the recording script)
+docs/submission/demo-draft.webm
+.demo-frames/

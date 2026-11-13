@@ -82,7 +82,7 @@ export function AiWinback({
                   title="Checked: no amounts, order counts or dates; no discounts; doesn't say they left; product names are filled in from this customer's own purchases, and other products from the shop's catalogue are rejected. Not checked: a product name the shop doesn't sell. Read it before sending."
                 >
                   · checked{d.checks.corrected ? ' after one rewrite' : ''}: no amounts, dates or discounts;
-                  their own products
+                  purchase-history product references inserted
                 </span>
               )}
             </div>

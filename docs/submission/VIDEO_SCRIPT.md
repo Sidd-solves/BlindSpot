@@ -7,7 +7,7 @@
 - Every number on screen is real and visible in the app.
 - Every claim matches what the data can support.
 
-**Timing (measured):** the narration below is 301 words. Each scene was read aloud by text-to-speech at 130 words per minute, a little slower than conversation, and timed:
+**Timing (measured):** the narration below is 301 words. Each scene was read aloud by macOS text-to-speech with its rate set to 130 and timed. The voice skips the pauses a person makes, so its measured effective rate was about 147 words per minute. Treat these numbers as a floor, not a forecast:
 
 | Scene | Words | Spoken at 130 wpm | Slot | Left for clicks and pauses |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@
 | 2:25–2:38 What changes | 30 | 10.8s | 13s | 2.2s |
 | 2:38–2:45 Close | 10 | 5.3s | 7s | 1.7s |
 
-Total spoken time is 123s of 165s. Every scene leaves room for its clicks, and the recheck scene leaves the most, because it has the most to show. Do one timed read-through with the real clicks before recording. If it runs over, cut the 2:25–2:38 scene first.
+Total TTS time is 123s of 165s. A person at a calm 130 words per minute would take about 139s, leaving about 26s for clicks and pauses. The recheck scene has the most room, because it has the most to show. **The deciding test is one complete human run:** final wording, real clicks, a stopwatch. It must finish by 2:45 with every number readable. A captioned draft recording of the real clicks is at `docs/submission/demo-draft.webm`. Do one timed read-through with the real clicks before recording. If it runs over, cut the 2:25–2:38 scene first.
 
 **Interaction timing (measured):** a scripted run of the real clicks on the local build, case study loaded:
 
@@ -71,9 +71,9 @@ The only wait longer than a second is the AI note. In the 1:30 scene it fits ins
 > "Every amount opens into the exact rows behind it. And this exact rule was tested on the shop's own past: flagged customers stayed away far more often than other top customers. But most came back. So it's a list to review first, not a list of losses."
 
 ### 1:30–1:50 · Decide and act
-**On screen:** tick four customers → "Start a list with 4". Expand one → "Write with AI". The note appears with "passed checks". Mark it Contacted, and the day appears.
+**On screen:** tick four customers → "Start a list with 4" → expand one → **press "Write with AI" first, as the scene opens**, then narrate while it writes (3.8–4.5s measured). The note appears with its "checked" label. Mark it Contacted, and the day appears. If the note takes longer than about 8s, cut the wait in the edit and keep the "checked" label on screen. Don't present a cut wait as the real response time.
 
-> "You choose who to contact. Claude drafts a short note about what each one used to buy, checked first: no amounts, no discounts, no telling them they've left. You send it, and BlindSpot logs the day."
+> "You choose who to contact. Claude drafts a short note from what each one used to buy, checked first: no amounts, no discounts, no telling them they've left. You send it, and BlindSpot logs the day."
 
 ### 1:50–2:25 · Recheck
 **On screen:** "New list" → "Practice on past data". The blue "Historical replay: no outreach recorded" banner. Select all → start → "Check the shop's real later orders". The ring fills: 7 of 14, £16,044, and the window read.
