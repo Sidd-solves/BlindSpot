@@ -311,7 +311,8 @@ const LENS = {
     uDim: { value: 0 },
     uAspect: { value: 1 },
   },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+  vertexShader:
+    'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
   fragmentShader: `
 uniform sampler2D tDiffuse; uniform float uTime, uRing, uRingR, uFlash, uCA, uAspect, uDim; varying vec2 vUv;
 float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -395,11 +396,22 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
   const panel = new THREE.Group();
   scene.add(panel);
   const dashMat = keep(
-    new THREE.MeshBasicMaterial({ map: keep(dashboardTexture()), color: 0xdddddd, transparent: true, opacity: 0, depthWrite: false }),
+    new THREE.MeshBasicMaterial({
+      map: keep(dashboardTexture()),
+      color: 0xdddddd,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    }),
   );
   panel.add(new THREE.Mesh(keep(new THREE.PlaneGeometry(PW, PH)), dashMat));
-  const edgeMat = keep(new THREE.LineBasicMaterial({ color: new THREE.Color(0.5, 0.8, 1.6), transparent: true, opacity: 0 }));
-  const edge = new THREE.LineSegments(keep(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PW, PH))), edgeMat);
+  const edgeMat = keep(
+    new THREE.LineBasicMaterial({ color: new THREE.Color(0.5, 0.8, 1.6), transparent: true, opacity: 0 }),
+  );
+  const edge = new THREE.LineSegments(
+    keep(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PW, PH))),
+    edgeMat,
+  );
   edge.position.z = 0.002;
   panel.add(edge);
   // construction grid that draws itself before the glass fills in
@@ -412,7 +424,12 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     return g;
   })();
   const gridMat = keep(
-    new THREE.LineBasicMaterial({ color: new THREE.Color(0.6, 0.5, 1.4), transparent: true, opacity: 0, blending: THREE.AdditiveBlending }),
+    new THREE.LineBasicMaterial({
+      color: new THREE.Color(0.6, 0.5, 1.4),
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    }),
   );
   const grid = new THREE.LineSegments(gridGeo, gridMat);
   grid.position.z = 0.001;
@@ -438,7 +455,9 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
   const barH = [0.95, 0.78, 0.66, 0.58, 0.47, 0.4, 0.31, 0.25];
   barH.forEach((h, i) => {
     const m = keep(
-      new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(0.72 - i * 0.035, 0.85, 0.6).multiplyScalar(1.12) }),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(0.72 - i * 0.035, 0.85, 0.6).multiplyScalar(1.12),
+      }),
     );
     const b = new THREE.Mesh(barGeo, m);
     b.userData = { h: h * 1.55, x: tx(1165 + i * 46) };
@@ -513,20 +532,26 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
   const TZ0 = -72,
     TZ1 = -174;
   const realm = (z: number) =>
-    z > -106 ? new THREE.Color('#8b5cf6') : z > -140 ? new THREE.Color('#22d3ee') : new THREE.Color('#f59e0b');
+    z > -106
+      ? new THREE.Color('#8b5cf6')
+      : z > -140
+        ? new THREE.Color('#22d3ee')
+        : new THREE.Color('#f59e0b');
   const NB = small() ? 1400 : 2600;
   const boxGeo = keep(new THREE.BoxGeometry(1, 1, 1));
   const boxMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 }));
   const camZU = { value: 0 };
   boxMat.onBeforeCompile = (sh) => {
     sh.uniforms.uCamZ = camZU;
-    sh.vertexShader = 'uniform float uCamZ;\n' + sh.vertexShader.replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>
+    sh.vertexShader =
+      'uniform float uCamZ;\n' +
+      sh.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
       float dd = instanceMatrix[3].z - uCamZ;
       float grow = smoothstep(-58., -20., dd) * (1. - smoothstep(3., 10., dd));
       transformed *= grow;`,
-    );
+      );
   };
   const boxes = new THREE.InstancedMesh(boxGeo, boxMat, NB);
   const m4 = new THREE.Matrix4(),
@@ -556,7 +581,10 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     for (let z = TZ0; z >= TZ1; z -= 3) {
       const r = 8.6,
         a0 = z * 0.045;
-      const cs = [0, 1, 2, 3].map((k) => [Math.cos(a0 + (k * Math.PI) / 2) * r, Math.sin(a0 + (k * Math.PI) / 2) * r]);
+      const cs = [0, 1, 2, 3].map((k) => [
+        Math.cos(a0 + (k * Math.PI) / 2) * r,
+        Math.sin(a0 + (k * Math.PI) / 2) * r,
+      ]);
       for (let k = 0; k < 4; k++) v.push(cs[k][0], cs[k][1], z, cs[(k + 1) % 4][0], cs[(k + 1) % 4][1], z);
     }
     const g = keep(new THREE.BufferGeometry());
@@ -564,7 +592,12 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     return g;
   })();
   const frameMat = keep(
-    new THREE.LineBasicMaterial({ color: 0xbfc7ff, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending }),
+    new THREE.LineBasicMaterial({
+      color: 0xbfc7ff,
+      transparent: true,
+      opacity: 0.18,
+      blending: THREE.AdditiveBlending,
+    }),
   );
   const frames = new THREE.LineSegments(frameGeo, frameMat);
   scene.add(frames);
@@ -587,7 +620,12 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     return g;
   })();
   const streakMat = keep(
-    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }),
+    new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    }),
   );
   const streaks = new THREE.LineSegments(streakGeo, streakMat);
   scene.add(streaks);
@@ -597,17 +635,38 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
   card.position.z = BASE_Z;
   scene.add(card);
   const cardMat = keep(
-    new THREE.MeshBasicMaterial({ map: keep(findingTexture()), color: 0xdddddd, transparent: true, opacity: 1, depthWrite: false }),
+    new THREE.MeshBasicMaterial({
+      map: keep(findingTexture()),
+      color: 0xdddddd,
+      transparent: true,
+      opacity: 1,
+      depthWrite: false,
+    }),
   );
   card.add(new THREE.Mesh(keep(new THREE.PlaneGeometry(PW, PH)), cardMat));
-  const cardEdgeMat = keep(new THREE.LineBasicMaterial({ color: new THREE.Color(1.6, 1.0, 0.3), transparent: true }));
-  const cardEdge = new THREE.LineSegments(keep(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PW, PH))), cardEdgeMat);
+  const cardEdgeMat = keep(
+    new THREE.LineBasicMaterial({ color: new THREE.Color(1.6, 1.0, 0.3), transparent: true }),
+  );
+  const cardEdge = new THREE.LineSegments(
+    keep(new THREE.EdgesGeometry(new THREE.PlaneGeometry(PW, PH))),
+    cardEdgeMat,
+  );
   card.add(cardEdge);
   const NS = small() ? 260 : 480;
   const shardGeo = keep(new THREE.BufferGeometry());
-  shardGeo.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.4, 0, 0.55, -0.3, 0, -0.05, 0.6, 0], 3));
+  shardGeo.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([-0.5, -0.4, 0, 0.55, -0.3, 0, -0.05, 0.6, 0], 3),
+  );
   const shardMat = keep(
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
   );
   const shards = new THREE.InstancedMesh(shardGeo, shardMat, NS);
   const shardData = Array.from({ length: NS }, () => {
@@ -625,7 +684,12 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     };
   });
   shardData.forEach((_, i) => {
-    const c = [new THREE.Color('#a78bfa'), new THREE.Color('#22d3ee'), new THREE.Color('#fbbf24'), new THREE.Color('#ffffff')][i % 4];
+    const c = [
+      new THREE.Color('#a78bfa'),
+      new THREE.Color('#22d3ee'),
+      new THREE.Color('#fbbf24'),
+      new THREE.Color('#ffffff'),
+    ][i % 4];
     shards.setColorAt(i, c.multiplyScalar(0.55));
   });
   shards.frustumCulled = false;
@@ -728,7 +792,7 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     gridGeo.setDrawRange(0, Math.floor(gridK * gridCount));
     const fill = sstep(clamp01((bt - 0.55) / 0.8));
     gridMat.opacity = 0.55 * gridK * (1 - fill * 0.85);
-    tubeGeo.setDrawRange(0, Math.floor(sstep(clamp01((bt - 0.9) / 1.6)) * tubeIdx / 3) * 3);
+    tubeGeo.setDrawRange(0, Math.floor((sstep(clamp01((bt - 0.9) / 1.6)) * tubeIdx) / 3) * 3);
     bars.forEach((b, i) => {
       const k = easeOut3(clamp01((bt - 1.1 - i * 0.08) / 0.7));
       b.scale.y = Math.max(0.0001, b.userData.h * k);
@@ -753,7 +817,11 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
       hs = wide ? 1 : Math.min(0.9, (visW * 0.86) / PW);
     panel.position.set(hx * (1 - k), hy * (1 - k), 0);
     panel.scale.setScalar(lerp(hs, 1, k));
-    panel.rotation.set(0.14 * (1 - k) + my * 0.05 * (1 - k), (wide ? -0.38 : -0.12) * (1 - k) + mx * 0.08 * (1 - k), 0.02 * (1 - k));
+    panel.rotation.set(
+      0.14 * (1 - k) + my * 0.05 * (1 - k),
+      (wide ? -0.38 : -0.12) * (1 - k) + mx * 0.08 * (1 - k),
+      0.02 * (1 - k),
+    );
     const pFade = 1 - seg(p, 0.185, 0.205);
     dashMat.opacity = fill * pFade;
     edgeMat.opacity = Math.min(1, gridK * 1.4) * 0.8 * pFade;
@@ -811,7 +879,8 @@ export function createStory(canvas: HTMLCanvasElement, o: StoryOpts) {
     lens.uniforms.uCA.value = 0.0012 + vel * 0.012 + seg(p, 0.17, 0.2) * 0.004 * (1 - seg(p, 0.2, 0.24));
     const flashIn = seg(p, 0.752, 0.775),
       flashOut = 1 - seg(p, 0.775, 0.795);
-    lens.uniforms.uFlash.value = Math.min(flashIn, flashOut) + 0.12 * Math.max(0, 1 - Math.abs(p - 0.2) / 0.012);
+    lens.uniforms.uFlash.value =
+      Math.min(flashIn, flashOut) + 0.12 * Math.max(0, 1 - Math.abs(p - 0.2) / 0.012);
     bloom.strength = lerp(0.7, 1.3, seg(p, 0.1, 0.2)) * (1 - seg(p, 0.2, 0.26) * 0.3) + inTunnel * 0.15;
     scene.fog!.color.setHex(0x04040a);
     (scene.fog as THREE.FogExp2).density = p > 0.775 ? 0.006 : 0.012;

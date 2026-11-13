@@ -54,7 +54,9 @@ export const Logo = ({ size = 15 }: { size?: number }) => (
 export default function SiteLayout({ page, children }: { page: string; children: ReactNode }) {
   return (
     <div className="site-dark relative min-h-screen overflow-x-clip">
-      {page !== 'home' && <Scene key={`scene-${page}`} start={SCENE_START[page] ?? (page.startsWith('guide/') ? 2.5 : 0)} />}
+      {page !== 'home' && (
+        <Scene key={`scene-${page}`} start={SCENE_START[page] ?? (page.startsWith('guide/') ? 2.5 : 0)} />
+      )}
       <Spotlight />
       <header className="fixed inset-x-0 top-0 z-40">
         <div

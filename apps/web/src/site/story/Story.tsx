@@ -16,7 +16,9 @@ import { RealResults, StepsTeaser } from '../Home';
  * camera almost still inside the realm they belong to while the real sections scroll over it.
  * `a`..`b` is the stretch of the journey (0 to 1) each block covers.
  */
-type Block = { a: number; b: number } & ({ vh: number } | { id: string; c: string; tag: string; node: ReactNode });
+type Block = { a: number; b: number } & (
+  { vh: number } | { id: string; c: string; tag: string; node: ReactNode }
+);
 const SEQ: Block[] = [
   { a: -0.03, b: 0.03, vh: 100 },
   { a: 0.03, b: 0.045, id: 'problem', c: 'var(--amber)', tag: 'The problem', node: <ProblemEvidence /> },
@@ -56,7 +58,14 @@ const SEQ: Block[] = [
     ),
   },
   { a: 0.748, b: 0.86, vh: 190 },
-  { a: 0.86, b: 0.872, id: 'gallery', c: 'var(--fuchsia)', tag: 'Everything it finds', node: <HorizontalGallery /> },
+  {
+    a: 0.86,
+    b: 0.872,
+    id: 'gallery',
+    c: 'var(--fuchsia)',
+    tag: 'Everything it finds',
+    node: <HorizontalGallery />,
+  },
   { a: 0.872, b: 0.9, vh: 70 },
   {
     a: 0.9,
@@ -206,7 +215,8 @@ export default function Story() {
       );
       // rows
       show(rows.current, band(p, 0.225, 0.385));
-      if (rowsN.current) rowsN.current.textContent = Math.round(261658 * sstepJs(seg(p, 0.21, 0.32))).toLocaleString('en-GB');
+      if (rowsN.current)
+        rowsN.current.textContent = Math.round(261658 * sstepJs(seg(p, 0.21, 0.32))).toLocaleString('en-GB');
       // tunnel
       const tk = seg(p, 0.4, 0.6);
       show(hud.current, band(p, 0.405, 0.595));
@@ -230,7 +240,8 @@ export default function Story() {
         const el = chips.current[i];
         if (!el) return;
         const d = l.d;
-        const o = d >= -0.5 || p < 0.36 || p > 0.62 ? 0 : Math.min(seg(d, -44, -30), seg(-d, 0.5, 6)) * keepNow;
+        const o =
+          d >= -0.5 || p < 0.36 || p > 0.62 ? 0 : Math.min(seg(d, -44, -30), seg(-d, 0.5, 6)) * keepNow;
         const near = 1 - Math.min(1, -d / 44);
         el.style.opacity = String(o);
         el.style.visibility = o < 0.01 ? 'hidden' : 'visible';
@@ -246,7 +257,11 @@ export default function Story() {
       }
       show(out.current, band(p, 0.79, 0.83, 0.012));
       const finO = seg(p, 0.885, 0.93) * (1 - Math.min(1, after * 1.6));
-      show(fin.current, finO, `translate3d(0, ${(1 - seg(p, 0.88, 0.94)) * 30}px, 0) scale(${0.96 + 0.04 * seg(p, 0.88, 0.94)})`);
+      show(
+        fin.current,
+        finO,
+        `translate3d(0, ${(1 - seg(p, 0.88, 0.94)) * 30}px, 0) scale(${0.96 + 0.04 * seg(p, 0.88, 0.94)})`,
+      );
       // rail
       show(rail.current, 1 - Math.min(1, after * 2), '', true);
       const cur = CHAPTERS.reduce((acc, [, at], i) => (p + 0.02 >= at ? i : acc), 0);
@@ -289,7 +304,11 @@ export default function Story() {
     <>
       {createPortal(
         <>
-          <canvas ref={canvas} aria-hidden className="pointer-events-none fixed inset-0 -z-10 h-full w-full" />
+          <canvas
+            ref={canvas}
+            aria-hidden
+            className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
+          />
           <div className="story-ui pointer-events-none fixed inset-0 z-20 overflow-hidden">
             {/* dive words */}
             <div ref={dive} className="absolute inset-0 grid place-items-center" style={{ opacity: 0 }}>
@@ -299,7 +318,11 @@ export default function Story() {
                     {line.map((w) => {
                       const idx = wi++;
                       return (
-                        <span key={w} ref={(el) => (words.current[idx] = el)} className="inline-block will-change-transform">
+                        <span
+                          key={w}
+                          ref={(el) => (words.current[idx] = el)}
+                          className="inline-block will-change-transform"
+                        >
                           {w}
                         </span>
                       );
@@ -322,11 +345,17 @@ export default function Story() {
                 </div>
                 <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--muted)]">
                   <span className="flex items-center gap-1.5">
-                    <i className="h-2 w-2 rounded-full" style={{ background: 'var(--violet)', boxShadow: '0 0 8px var(--violet)' }} />
+                    <i
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: 'var(--violet)', boxShadow: '0 0 8px var(--violet)' }}
+                    />
                     a sale
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <i className="h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />
+                    <i
+                      className="h-2 w-2 animate-pulse rounded-full"
+                      style={{ background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }}
+                    />
                     a customer going quiet
                   </span>
                 </div>
@@ -334,8 +363,17 @@ export default function Story() {
             </div>
 
             {/* tunnel hud */}
-            <div ref={hud} className="absolute inset-x-0 top-[118px] flex justify-center md:top-24" style={{ opacity: 0 }}>
-              <div ref={realm} data-r="-1" className="chip !px-3 !py-1 text-[12px]" style={{ '--c': 'var(--violet)', backdropFilter: 'blur(10px)' } as CSSProperties} />
+            <div
+              ref={hud}
+              className="absolute inset-x-0 top-[118px] flex justify-center md:top-24"
+              style={{ opacity: 0 }}
+            >
+              <div
+                ref={realm}
+                data-r="-1"
+                className="chip !px-3 !py-1 text-[12px]"
+                style={{ '--c': 'var(--violet)', backdropFilter: 'blur(10px)' } as CSSProperties}
+              />
             </div>
             <ChecksDial hudRef={hud} nRef={checksN} ringRef={ring} />
             {CHECKS.map(([name, c], i) => (
@@ -345,21 +383,40 @@ export default function Story() {
                 className="story-chip absolute left-0 top-0 whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-bold will-change-transform"
                 style={{ '--c': c, opacity: 0 } as CSSProperties}
               >
-                <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle" style={{ background: c, boxShadow: `0 0 8px ${c}` }} />
+                <span
+                  className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                  style={{ background: c, boxShadow: `0 0 8px ${c}` }}
+                />
                 {name}
               </div>
             ))}
 
             {/* reveal */}
-            <div ref={reveal} className="absolute inset-x-0 bottom-[12vh] flex flex-col items-center px-4 text-center" style={{ opacity: 0 }}>
+            <div
+              ref={reveal}
+              className="absolute inset-x-0 bottom-[12vh] flex flex-col items-center px-4 text-center"
+              style={{ opacity: 0 }}
+            >
               <div className="chip !py-1" style={{ '--c': 'var(--amber)' } as CSSProperties}>
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: 'var(--amber)' }} />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full"
+                  style={{ background: 'var(--amber)' }}
+                />
                 The blind spot
               </div>
-              <div ref={revealT} className="mt-3 min-h-[1.2em] max-w-[22ch] font-mono text-[clamp(15px,2vw,24px)] font-bold tracking-tight text-white md:max-w-none" />
-              <div className="mt-1.5 text-[12px] text-[var(--muted)]">A year of their orders, gone quiet while the total kept rising.</div>
+              <div
+                ref={revealT}
+                className="mt-3 min-h-[1.2em] max-w-[22ch] font-mono text-[clamp(15px,2vw,24px)] font-bold tracking-tight text-white md:max-w-none"
+              />
+              <div className="mt-1.5 text-[12px] text-[var(--muted)]">
+                A year of their orders, gone quiet while the total kept rising.
+              </div>
             </div>
-            <div ref={out} className="absolute inset-x-0 top-24 text-center text-[11px] font-bold uppercase tracking-[0.3em] text-[var(--muted)]" style={{ opacity: 0 }}>
+            <div
+              ref={out}
+              className="absolute inset-x-0 top-24 text-center text-[11px] font-bold uppercase tracking-[0.3em] text-[var(--muted)]"
+              style={{ opacity: 0 }}
+            >
               Every finding comes with its rows
             </div>
 
@@ -372,11 +429,14 @@ export default function Story() {
                   <span className="story-grad bg-clip-text text-transparent">blind spot.</span>
                 </div>
                 <p className="mx-auto mt-4 max-w-md text-[14px] text-[var(--muted)]">
-                  Dashboards show what happened. BlindSpot shows what you’re missing. Upload a sales export and see your
-                  first findings in under a minute.
+                  Dashboards show what happened. BlindSpot shows what you’re missing. Upload a sales export
+                  and see your first findings in under a minute.
                 </p>
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  <button className="btn btn-primary !h-11 !px-5 text-[13px]" onClick={() => sample.open('overview')}>
+                  <button
+                    className="btn btn-primary !h-11 !px-5 text-[13px]"
+                    onClick={() => sample.open('overview')}
+                  >
                     <Eye size={15} />
                     See it on a real shop
                   </button>
@@ -384,7 +444,10 @@ export default function Story() {
                     Start free
                     <ArrowRight size={14} />
                   </button>
-                  <button className="btn !h-11 !px-4 text-[13px]" onClick={() => sample.open('overview?tour=1')}>
+                  <button
+                    className="btn !h-11 !px-4 text-[13px]"
+                    onClick={() => sample.open('overview?tour=1')}
+                  >
                     <Compass size={15} style={{ color: 'var(--cyan)' }} />
                     60-second tour
                   </button>
@@ -393,7 +456,10 @@ export default function Story() {
             </div>
 
             {/* chapter rail */}
-            <div ref={rail} className="absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col gap-2.5 md:flex">
+            <div
+              ref={rail}
+              className="absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col gap-2.5 md:flex"
+            >
               {CHAPTERS.map(([name, at], i) => (
                 <button
                   key={name}
@@ -402,7 +468,9 @@ export default function Story() {
                   className="story-dot pointer-events-auto group flex items-center justify-end gap-2"
                   aria-label={name}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-0 transition-opacity group-hover:opacity-100">{name}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-0 transition-opacity group-hover:opacity-100">
+                    {name}
+                  </span>
                   <i />
                 </button>
               ))}
@@ -416,9 +484,17 @@ export default function Story() {
           >
             <div className="flex flex-col items-center gap-3">
               <div className="h-[3px] w-40 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full rounded-full" style={{ width: `${load}%`, background: 'linear-gradient(90deg, var(--violet), var(--cyan), var(--amber))' }} />
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${load}%`,
+                    background: 'linear-gradient(90deg, var(--violet), var(--cyan), var(--amber))',
+                  }}
+                />
               </div>
-              <div className="font-mono text-[11px] tracking-[0.3em] text-[var(--muted)]">{String(load).padStart(3, '0')}</div>
+              <div className="font-mono text-[11px] tracking-[0.3em] text-[var(--muted)]">
+                {String(load).padStart(3, '0')}
+              </div>
             </div>
           </div>
         </>,
@@ -428,63 +504,108 @@ export default function Story() {
       <div className="-mt-20">
         {SEQ.map((b, i) =>
           'vh' in b ? (
-            <div key={i} ref={(el) => (blocks.current[i] = el)} className="relative" style={{ height: `${b.vh}vh` }}>
+            <div
+              key={i}
+              ref={(el) => (blocks.current[i] = el)}
+              className="relative"
+              style={{ height: `${b.vh}vh` }}
+            >
               {i === 0 && (
                 <>
-            {/* hero */}
-            <div ref={hero} className="absolute inset-0 flex items-start px-4 pt-28 md:items-center md:px-10 md:pt-0">
-              <div className="mx-auto w-full max-w-6xl">
-                <div className="max-w-[460px]">
-                  <div className="chip !py-1" style={{ '--c': 'var(--violet)', backdropFilter: 'blur(10px)' } as CSSProperties}>
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: 'var(--emerald)', boxShadow: '0 0 8px var(--emerald)' }} />
-                    For independent online shops
+                  {/* hero */}
+                  <div
+                    ref={hero}
+                    className="absolute inset-0 flex items-start px-4 pt-28 md:items-center md:px-10 md:pt-0"
+                  >
+                    <div className="mx-auto w-full max-w-6xl">
+                      <div className="max-w-[460px]">
+                        <div
+                          className="chip !py-1"
+                          style={{ '--c': 'var(--violet)', backdropFilter: 'blur(10px)' } as CSSProperties}
+                        >
+                          <span
+                            className="h-1.5 w-1.5 animate-pulse rounded-full"
+                            style={{ background: 'var(--emerald)', boxShadow: '0 0 8px var(--emerald)' }}
+                          />
+                          For independent online shops
+                        </div>
+                        <h1 className="story-rise mt-4 text-[clamp(34px,4.8vw,62px)] font-extrabold leading-[0.98] tracking-[-0.035em]">
+                          Your dashboard
+                          <br />
+                          says you’re{' '}
+                          <span className="bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">
+                            fine.
+                          </span>
+                        </h1>
+                        <p
+                          className="story-rise mt-4 max-w-md text-[13.5px] leading-relaxed text-[var(--muted)]"
+                          style={{ animationDelay: '.15s' }}
+                        >
+                          Your best customers don’t say goodbye. They just stop ordering, while the total
+                          still looks fine. BlindSpot reads your sales export, finds the valuable customers
+                          who have gone quiet, shows the exact rows behind each one, and helps you win them
+                          back.
+                        </p>
+                        <div
+                          className="story-rise mt-5 flex flex-wrap gap-2"
+                          style={{ animationDelay: '.3s' }}
+                        >
+                          <button
+                            className="btn btn-primary !h-10 !px-4 text-[12.5px]"
+                            onClick={() => sample.open('overview')}
+                          >
+                            <Eye size={14} />
+                            See it on a real shop
+                          </button>
+                          <button
+                            className="btn !h-10 !px-4 text-[12.5px]"
+                            onClick={() => (location.hash = '/signup')}
+                          >
+                            <Sparkles size={14} style={{ color: 'var(--fuchsia)' }} />
+                            Create a free account
+                          </button>
+                          <button
+                            className="btn !h-10 !px-3.5 text-[12.5px]"
+                            onClick={() => sample.open('overview?tour=1')}
+                          >
+                            <Compass size={14} style={{ color: 'var(--cyan)' }} />
+                            60-second tour
+                          </button>
+                        </div>
+                        <div
+                          className="story-rise mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[var(--muted)]"
+                          style={{ animationDelay: '.45s' }}
+                        >
+                          {['Free to try', 'Guest mode, no sign-up', 'Read-only access'].map((t) => (
+                            <span key={t} className="flex items-center gap-1.5">
+                              <i
+                                className="h-1 w-1 rounded-full"
+                                style={{ background: 'var(--emerald)', boxShadow: '0 0 6px var(--emerald)' }}
+                              />
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <h1 className="story-rise mt-4 text-[clamp(34px,4.8vw,62px)] font-extrabold leading-[0.98] tracking-[-0.035em]">
-                    Your dashboard
-                    <br />
-                    says you’re{' '}
-                    <span className="bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">fine.</span>
-                  </h1>
-                  <p className="story-rise mt-4 max-w-md text-[13.5px] leading-relaxed text-[var(--muted)]" style={{ animationDelay: '.15s' }}>
-                    Your best customers don’t say goodbye. They just stop ordering, while the total still looks
-                    fine. BlindSpot reads your sales export, finds the valuable customers who have gone quiet, shows
-                    the exact rows behind each one, and helps you win them back.
-                  </p>
-                  <div className="story-rise mt-5 flex flex-wrap gap-2" style={{ animationDelay: '.3s' }}>
-                    <button className="btn btn-primary !h-10 !px-4 text-[12.5px]" onClick={() => sample.open('overview')}>
-                      <Eye size={14} />
-                      See it on a real shop
-                    </button>
-                    <button className="btn !h-10 !px-4 text-[12.5px]" onClick={() => (location.hash = '/signup')}>
-                      <Sparkles size={14} style={{ color: 'var(--fuchsia)' }} />
-                      Create a free account
-                    </button>
-                    <button className="btn !h-10 !px-3.5 text-[12.5px]" onClick={() => sample.open('overview?tour=1')}>
-                      <Compass size={14} style={{ color: 'var(--cyan)' }} />
-                      60-second tour
-                    </button>
+                  <div
+                    ref={hint}
+                    className="pointer-events-none absolute bottom-7 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--muted)]"
+                  >
+                    Scroll to dive in
+                    <span className="story-hint relative block h-9 w-px overflow-hidden bg-white/10" />
                   </div>
-                  <div className="story-rise mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[var(--muted)]" style={{ animationDelay: '.45s' }}>
-                    {['Free to try', 'Guest mode, no sign-up', 'Read-only access'].map((t) => (
-                      <span key={t} className="flex items-center gap-1.5">
-                        <i className="h-1 w-1 rounded-full" style={{ background: 'var(--emerald)', boxShadow: '0 0 6px var(--emerald)' }} />
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div ref={hint} className="pointer-events-none absolute bottom-7 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--muted)]">
-              Scroll to dive in
-              <span className="story-hint relative block h-9 w-px overflow-hidden bg-white/10" />
-            </div>
-
                 </>
               )}
             </div>
           ) : (
-            <div key={b.id} ref={(el) => (blocks.current[i] = el)} className="story-read relative" style={{ '--c': b.c } as CSSProperties}>
+            <div
+              key={b.id}
+              ref={(el) => (blocks.current[i] = el)}
+              className="story-read relative"
+              style={{ '--c': b.c } as CSSProperties}
+            >
               <div className="story-read-bg pointer-events-none absolute inset-0" />
               <div className="relative mx-auto flex max-w-6xl items-center gap-3 px-4 pt-10 md:px-6">
                 <span className="h-px flex-1 story-read-line" />
@@ -558,7 +679,9 @@ function ChecksDial({
             <span className="text-[13px] text-[var(--muted)]"> / 40</span>
           </div>
           <div className="label mt-1">Checks run</div>
-          <div className="mt-0.5 max-w-[170px] text-[10.5px] leading-snug text-[var(--muted)]">Each finding is tested by statistics before you see it.</div>
+          <div className="mt-0.5 max-w-[170px] text-[10.5px] leading-snug text-[var(--muted)]">
+            Each finding is tested by statistics before you see it.
+          </div>
         </div>
       </div>
     </div>
