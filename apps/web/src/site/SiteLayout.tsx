@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { ArrowRight, Github } from 'lucide-react';
 import { Spotlight } from './Effects';
+import { useAuth } from '../auth';
 import { Scene } from './Scene';
 
 /** Each page opens in its own scene of the landscape. */
@@ -92,15 +93,7 @@ export default function SiteLayout({ page, children }: { page: string; children:
               </button>
             ))}
           </nav>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            whileHover={{ scale: 1.03 }}
-            onClick={() => openApp()}
-            className="btn btn-primary ml-auto !h-8"
-          >
-            Open the app
-            <ArrowRight size={13} />
-          </motion.button>
+          <HeaderAccount />
         </div>
         <nav className="mx-3 mt-2 flex gap-1 overflow-x-auto md:hidden">
           {SITE.map((s) => (
@@ -166,6 +159,58 @@ export default function SiteLayout({ page, children }: { page: string; children:
           <div className="max-w-sm">Case-study data: UCI Online Retail II (CC BY 4.0).</div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Top-right of the site: signed in, a greeting that opens your workspace; signed out, Log in, Sign up, and
+ * "Try it free" for people who want to look around without an account.
+ */
+function HeaderAccount() {
+  const { ready, user, profile } = useAuth();
+  if (ready && user) {
+    const name = profile?.display_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
+    return (
+      <motion.button
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.03 }}
+        onClick={() => openApp('overview')}
+        className="btn btn-primary ml-auto !h-8"
+      >
+        Hi, {name} · Open my workspace
+        <ArrowRight size={13} />
+      </motion.button>
+    );
+  }
+  return (
+    <div className="ml-auto flex items-center gap-1.5">
+      <button
+        onClick={() => (location.hash = '/login')}
+        className="hidden h-8 rounded-lg px-3 text-[12.5px] font-bold text-[var(--muted)] transition-colors hover:text-[var(--text)] sm:block"
+      >
+        Log in
+      </button>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.03 }}
+        onClick={() => (location.hash = '/signup')}
+        className="btn !h-8"
+      >
+        Sign up
+      </motion.button>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.03 }}
+        onClick={() => openApp()}
+        className="btn btn-primary !h-8"
+        title="Use every feature without an account"
+      >
+        Try it free
+        <ArrowRight size={13} />
+      </motion.button>
     </div>
   );
 }

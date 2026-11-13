@@ -30,6 +30,7 @@ import {
   ShoppingCart,
   TrendingUp,
   X,
+  UserRound,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { pct, SEV, CAT, tool, usd, evidenceText, VERDICT, exposureText, impactColor } from '../api';
@@ -39,6 +40,7 @@ import { go } from '../App';
 import { Confidence, sureOf } from '../components/Confidence';
 import { describeAccuracy } from '@blindspot/analytics';
 import { AiBriefing } from '../components/AiBriefing';
+import { useAuth } from '../auth';
 
 const KPI_STYLE = [
   { c: 'var(--violet)', icon: DollarSign },
@@ -213,6 +215,61 @@ function IdeasCard() {
   );
 }
 
+/** "Good evening, Sam": the workspace greets a signed-in owner by name; guests are invited to save their work. */
+function Greeting() {
+  const { user, profile } = useAuth();
+  const { dataset } = useStore();
+  const h = new Date().getHours();
+  const part = h < 5 ? 'Working late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const name = profile?.display_name?.split(' ')[0] || user?.email?.split('@')[0];
+  return (
+    <motion.div
+      variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}
+      className="flex flex-none items-center gap-3 rounded-xl px-1 py-1 lg:max-w-[46%]"
+    >
+      <motion.span
+        className="grid h-11 w-11 flex-none place-items-center rounded-full text-[15px] font-extrabold text-white"
+        style={{
+          background:
+            'conic-gradient(from 200deg, var(--violet), var(--fuchsia), var(--cyan), var(--violet))',
+          boxShadow: '0 0 22px -6px var(--violet)',
+        }}
+        animate={{ rotate: [0, 4, -4, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        {name ? name[0].toUpperCase() : <UserRound size={18} />}
+      </motion.span>
+      <div className="min-w-0">
+        <div className="truncate text-[19px] font-extrabold leading-tight tracking-tight">
+          {name ? (
+            <>
+              {part}, <span className="grad-text">{name}</span>
+            </>
+          ) : (
+            <>Welcome to BlindSpot</>
+          )}
+        </div>
+        <div className="truncate text-[12px] text-[var(--muted)]">
+          {name ? (
+            <>
+              {profile?.shop_name ? `${profile.shop_name} · ` : ''}Here’s what{' '}
+              {dataset?.label || dataset?.name || 'your data'} is telling you today.
+            </>
+          ) : (
+            <>
+              You’re exploring as a guest.{' '}
+              <a href="#/signup" className="font-bold" style={{ color: 'var(--violet)' }}>
+                Create an account
+              </a>{' '}
+              to save your work.
+            </>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Overview() {
   const { dash, findings, bySeverity, actions, dataset, loading, version } = useStore();
   const [conc, setConc] = useState<any>(null),
@@ -299,48 +356,56 @@ export default function Overview() {
       animate="show"
       className="grid grid-cols-1 gap-3 md:grid-cols-6 xl:grid-cols-12"
     >
-      {top && (
-        <motion.button
-          variants={{ hidden: { opacity: 0, y: -8 }, show: { opacity: 1, y: 0 } }}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.995 }}
-          onClick={() => go('risk', `?f=${encodeURIComponent(top.id)}`)}
-          aria-label={`Fix this first: ${top.title}. Open the evidence.`}
-          className="tint group relative flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 overflow-hidden rounded-xl px-3 py-2.5 text-left md:col-span-6 xl:col-span-12"
-          style={{ '--c': SEV[top.severity].c } as CSSProperties}
-        >
-          <motion.span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3"
-            style={{
-              background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${SEV[top.severity].c} 22%, transparent), transparent)`,
-            }}
-            animate={{ x: ['0%', '420%'] }}
-            transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
-          />
-          <span
-            className="flex flex-none items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider"
-            style={{ color: SEV[top.severity].c }}
+      <div className="flex flex-col gap-3 md:col-span-6 lg:flex-row lg:items-stretch xl:col-span-12">
+        <Greeting />
+        {top && (
+          <motion.button
+            variants={{ hidden: { opacity: 0, y: -8 }, show: { opacity: 1, y: 0 } }}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.995 }}
+            onClick={() => go('risk', `?f=${encodeURIComponent(top.id)}`)}
+            aria-label={`Fix this first: ${top.title}. Open the evidence.`}
+            className="tint group relative flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 overflow-hidden rounded-xl px-3 py-2.5 text-left"
+            style={{ '--c': SEV[top.severity].c } as CSSProperties}
           >
-            <Crosshair size={13} />
-            Fix this first
-          </span>
-          <span className="min-w-0 flex-1 basis-64 text-[13px] font-extrabold leading-snug">{top.title}</span>
-          {top.impactUsd ? (
-            <span className="mono flex-none text-[13px] font-semibold" style={{ color: SEV[top.severity].c }}>
-              {usd(top.impactUsd)}
-              {top.period ? (
-                <span className="ml-1 font-sans text-[11px] text-[var(--muted)]">{top.period}</span>
-              ) : null}
+            <motion.span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3"
+              style={{
+                background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${SEV[top.severity].c} 22%, transparent), transparent)`,
+              }}
+              animate={{ x: ['0%', '420%'] }}
+              transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
+            />
+            <span
+              className="flex flex-none items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider"
+              style={{ color: SEV[top.severity].c }}
+            >
+              <Crosshair size={13} />
+              Fix this first
             </span>
-          ) : null}
-          <Confidence sure={sureOf(top)} />
-          <span className="flex flex-none items-center gap-1 text-[11.5px] font-bold text-[var(--muted)] transition-colors group-hover:text-[var(--text)]">
-            See the evidence
-            <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </motion.button>
-      )}
+            <span className="min-w-0 flex-1 basis-64 text-[13px] font-extrabold leading-snug">
+              {top.title}
+            </span>
+            {top.impactUsd ? (
+              <span
+                className="mono flex-none text-[13px] font-semibold"
+                style={{ color: SEV[top.severity].c }}
+              >
+                {usd(top.impactUsd)}
+                {top.period ? (
+                  <span className="ml-1 font-sans text-[11px] text-[var(--muted)]">{top.period}</span>
+                ) : null}
+              </span>
+            ) : null}
+            <Confidence sure={sureOf(top)} />
+            <span className="flex flex-none items-center gap-1 text-[11.5px] font-bold text-[var(--muted)] transition-colors group-hover:text-[var(--text)]">
+              See the evidence
+              <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </motion.button>
+        )}
+      </div>
       <AiBriefing />
       {dash.kpis.slice(0, 4).map((k, i) => {
         const st = KPI_STYLE[i];

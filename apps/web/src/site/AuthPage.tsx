@@ -134,6 +134,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [email, setEmail] = useState(''),
     [password, setPw] = useState(''),
     [name, setName] = useState(''),
+    [confirm, setConfirm] = useState(''),
     [show, setShow] = useState(false),
     [busy, setBusy] = useState(false),
     [err, setErr] = useState<string | null>(null),
@@ -158,7 +159,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       if (m) setErr(m);
       else go('/overview');
     } else if (mode === 'signup') {
-      if (password.length < 8) setErr('Use a longer password: at least 8 characters.');
+      if (!name.trim()) setErr('Add your name so BlindSpot can greet you.');
+      else if (password.length < 8) setErr('Use a longer password: at least 8 characters.');
+      else if (password !== confirm) setErr('The two passwords don’t match.');
       else {
         const r = await a.signUp(email.trim(), password, name.trim());
         if (r.error) setErr(r.error);
@@ -172,6 +175,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       else setDone(`If there’s an account for ${email.trim()}, a reset link is on its way. It works once.`);
     } else {
       if (password.length < 8) setErr('Use a longer password: at least 8 characters.');
+      else if (password !== confirm) setErr('The two passwords don’t match.');
       else {
         const m = await a.setPassword(password);
         if (m) setErr(m);
@@ -340,6 +344,31 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                     </span>
                   </div>
                 )}
+                {(mode === 'signup' || mode === 'reset') && (
+                  <Field icon={<Lock size={14} />} label="Confirm password">
+                    <input
+                      className="input w-full !pl-8 !pr-9"
+                      type={show ? 'text' : 'password'}
+                      required
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      autoComplete="new-password"
+                      placeholder="Type it again"
+                      aria-invalid={!!confirm && confirm !== password}
+                    />
+                    {confirm && (
+                      <motion.span
+                        key={String(confirm === password)}
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="absolute right-2.5 text-[11px] font-bold"
+                        style={{ color: confirm === password ? 'var(--emerald)' : 'var(--rose)' }}
+                      >
+                        {confirm === password ? '✓ Match' : 'No match'}
+                      </motion.span>
+                    )}
+                  </Field>
+                )}
                 {mode === 'login' && (
                   <div className="flex justify-end">
                     <button
@@ -371,7 +400,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  disabled={busy || (mode === 'reset' && !a.user)}
+                  disabled={
+                    busy ||
+                    (mode === 'reset' && !a.user) ||
+                    ((mode === 'signup' || mode === 'reset') && (!password || password !== confirm))
+                  }
                   className="relative flex h-10 w-full items-center justify-center gap-1.5 overflow-hidden rounded-lg text-[13px] font-bold text-white"
                   style={{ background: 'linear-gradient(135deg, var(--violet), var(--fuchsia))' }}
                 >
@@ -415,6 +448,17 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                     </button>
                     <p className="text-center text-[11px] text-[var(--faint)]">
                       Guests can use everything. An account keeps your profile and saved analyses.
+                    </p>
+                    <p className="text-center text-[12.5px] text-[var(--muted)]">
+                      {mode === 'login' ? 'Don’t have an account?' : 'Already have an account?'}{' '}
+                      <button
+                        type="button"
+                        onClick={() => go(mode === 'login' ? '/signup' : '/login')}
+                        className="font-bold underline-offset-2 hover:underline"
+                        style={{ color: 'var(--violet)' }}
+                      >
+                        {mode === 'login' ? 'Create one here' : 'Log in here'}
+                      </button>
                     </p>
                   </>
                 )}
