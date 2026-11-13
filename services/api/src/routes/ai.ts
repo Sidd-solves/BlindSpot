@@ -142,13 +142,23 @@ export function aiRoutes(app: Express, rc: RouteContext, llm: ReturnType<typeof 
   app.post('/api/ai/winback', limit, express.json({ limit: '4kb' }), async (req, res) => {
     if (need(res)) return;
     const p = z
-      .object({ customer: z.string().max(120), shopName: z.string().max(80).default('our shop') })
+      .object({
+        customer: z.string().max(120),
+        shopName: z.string().max(80).default('our shop'),
+        asOf: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+      })
       .safeParse(req.body);
     if (!p.success)
       return res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'customer is required.' } });
     try {
       const ctx = rc.sessions.ctx(rc.sid(req));
-      const wb = await callTool(ctx, 'win-back-list', { shopName: p.data.shopName });
+      const wb = await callTool(ctx, 'win-back-list', {
+        shopName: p.data.shopName,
+        ...(p.data.asOf ? { asOf: p.data.asOf } : {}),
+      });
       const c = ((wb.data as any)?.customers ?? []).find((x: any) => x.customer === p.data.customer);
       if (!c)
         return res

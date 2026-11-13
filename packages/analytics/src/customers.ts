@@ -225,6 +225,8 @@ export interface WinBack {
   ok: boolean;
   reason?: string;
   cutoff: string;
+  /** The last day of data the list was read from. */
+  asOf?: string;
   customers: {
     customer: string;
     email: string | null;
@@ -232,6 +234,12 @@ export interface WinBack {
     spend: number;
     lastOrder: string;
     daysSilent: number;
+    /** Distinct days with an order, across all history before the list date. */
+    orderDays?: number;
+    /** Median days between those order days; null with a single order day. */
+    typicalGapDays?: number | null;
+    /** This customer's share of the list total, in %. */
+    share?: number;
     topProducts: string[];
     message: string;
   }[];
@@ -264,9 +272,20 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
       customers: [],
       total: 0,
     };
-  const prior = new Map<string, { rev: number; n: number; last: number; products: Map<string, number> }>();
+  const prior = new Map<
+    string,
+    { rev: number; n: number; last: number; products: Map<string, number>; days: number[] }
+  >();
   for (const o of orders) {
-    const e = prior.get(o.customer) ?? { rev: 0, n: 0, last: 0, products: new Map() };
+    const e = prior.get(o.customer) ?? {
+      rev: 0,
+      n: 0,
+      last: 0,
+      products: new Map<string, number>(),
+      days: [] as number[],
+    };
+    const d = Math.floor(o.t / DAY);
+    if (e.days[e.days.length - 1] !== d) e.days.push(d);
     if (o.t >= yearStart && o.t < cutoff) {
       e.rev += o.total;
       e.n++;
@@ -284,6 +303,7 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
       .slice(0, 3)
       .map(([p]) => p);
     const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) ? c : null;
+    const gaps = e.days.slice(1).map((d, i) => d - e.days[i]);
     const fav = topProducts[0] ? topProducts[0].toLowerCase() : 'your usual order';
     return {
       customer: c,
@@ -292,6 +312,8 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
       spend: round2(e.rev),
       lastOrder: isoDay(e.last),
       daysSilent: Math.floor((end - DAY - e.last) / DAY),
+      orderDays: e.days.length,
+      typicalGapDays: gaps.length ? Math.round(median(gaps)) : null,
       topProducts,
       message:
         `Hi there,\n\nWe noticed it's been a while since your last order with ${shopName}, and we wanted to say thank you ` +
@@ -299,10 +321,132 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
         `Your ${fav} is still here whenever you need it.\n\nThank you,\n${shopName}`,
     };
   });
+  const total = round2(customers.reduce((s, c) => s + c.spend, 0));
   return {
     ok: true,
     cutoff: isoDay(cutoff),
-    customers,
-    total: round2(customers.reduce((s, c) => s + c.spend, 0)),
+    asOf: isoDay(end - DAY),
+    customers: customers.map((c) => ({ ...c, share: total ? round2((c.spend / total) * 100) : 0 })),
+    total,
+  };
+}
+
+/** The rows dated before `asOf` (YYYY-MM-DD): the data as it would have looked on that day. Returns and the
+ * cleaning report are kept for those rows only, so a replay never sees anything from after its own date. */
+export function sliceBefore(ds: Dataset, asOf: string): Dataset {
+  const fm = detectFields(ds);
+  const t = Date.parse(`${asOf}T00:00:00Z`);
+  if (!fm.date || !Number.isFinite(t)) return ds;
+  const rows = ds.rows.filter((r: Row) => toMs(r[fm.date!]) < t);
+  return { ...ds, rows, prep: ds.prep ? { ...ds.prep, scope: 'filtered' as const } : ds.prep };
+}
+
+export interface FollowUpAccount {
+  customer: string;
+  /** Found anywhere in the newer data (matched by the exact customer ID, never by a similar name). */
+  found: boolean;
+  lastBefore: string | null;
+  ordersAfter: number;
+  /** Product sales on orders dated on or after the follow-up date. Returns excluded. */
+  salesAfter: number;
+  firstOrderAfter: string | null;
+}
+export interface FollowUp {
+  ok: boolean;
+  reason?: string;
+  /** The day the list was made: orders on or after it count as "ordered again". */
+  since: string;
+  /** The last day in the newer data. */
+  dataEnd: string;
+  daysObserved: number;
+  accounts: FollowUpAccount[];
+  matched: number;
+  unmatched: string[];
+  orderedAgain: number;
+  salesAfter: number;
+  /** The same check for every other repeat customer who wasn't on the list, as context (not a control group). */
+  baseline: { customers: number; orderedAgain: number } | null;
+  note: string;
+}
+
+/** Which of the listed customers ordered again on or after `since`, and what they bought, read from this data. */
+export function followUpCheck(ds: Dataset, since: string, ids: string[]): FollowUp {
+  const orders = ordersOf(ds);
+  const t0 = Date.parse(`${since}T00:00:00Z`);
+  const end = endOf(ds);
+  const note =
+    'Counts real orders in this data. It shows who ordered again after the list was made, not that contacting them caused it.';
+  const base = {
+    since,
+    dataEnd: end ? isoDay(end - DAY) : '',
+    daysObserved: end && Number.isFinite(t0) ? Math.max(0, Math.round((end - t0) / DAY)) : 0,
+    note,
+  };
+  const fail = (reason: string): FollowUp => ({
+    ok: false,
+    reason,
+    ...base,
+    accounts: [],
+    matched: 0,
+    unmatched: ids,
+    orderedAgain: 0,
+    salesAfter: 0,
+    baseline: null,
+  });
+  if (!orders.length) return fail('This data has no dated sales with customer IDs to check against.');
+  if (!Number.isFinite(t0)) return fail('The follow-up date is missing.');
+  if (end <= t0)
+    return fail(
+      `This data ends on ${base.dataEnd}, before the list was made on ${since}. Upload a newer export to see who ordered again.`,
+    );
+  const by = new Map<string, Order[]>();
+  for (const o of orders) {
+    const l = by.get(o.customer) ?? [];
+    l.push(o);
+    by.set(o.customer, l);
+  }
+  const want = new Set(ids);
+  const accounts: FollowUpAccount[] = ids.map((customer) => {
+    const l = by.get(customer);
+    if (!l)
+      return {
+        customer,
+        found: false,
+        lastBefore: null,
+        ordersAfter: 0,
+        salesAfter: 0,
+        firstOrderAfter: null,
+      };
+    const before = l.filter((o) => o.t < t0),
+      after = l.filter((o) => o.t >= t0);
+    return {
+      customer,
+      found: true,
+      lastBefore: before.length ? isoDay(before[before.length - 1].t) : null,
+      ordersAfter: after.length,
+      salesAfter: round2(after.reduce((s, o) => s + o.total, 0)),
+      firstOrderAfter: after.length ? isoDay(after[0].t) : null,
+    };
+  });
+  // Context: other customers with 2+ orders before the date, how many ordered again in the same window.
+  let others = 0,
+    othersBack = 0;
+  for (const [c, l] of by) {
+    if (want.has(c)) continue;
+    if (l.filter((o) => o.t < t0).length < 2) continue;
+    others++;
+    if (l.some((o) => o.t >= t0)) othersBack++;
+  }
+  const matched = accounts.filter((a) => a.found);
+  return {
+    ok: true,
+    ...base,
+    accounts,
+    matched: matched.length,
+    unmatched: accounts.filter((a) => !a.found).map((a) => a.customer),
+    orderedAgain: matched.filter((a) => a.ordersAfter > 0).length,
+    salesAfter: round2(matched.reduce((s, a) => s + a.salesAfter, 0)),
+    baseline: others ? { customers: others, orderedAgain: othersBack } : null,
+    note,
   };
 }
