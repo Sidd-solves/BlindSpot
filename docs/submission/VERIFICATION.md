@@ -15,11 +15,21 @@ Every check below was run by the author on the local build (branch `itax`). None
 | Photo tables are shown and editable before anything is analysed | Author-tested in code; needs a real photo in a browser | `apps/web/src/components/Upload.tsx` (`PhotoReview`) |
 | All 18 site and app pages load with no console errors | Author-tested (scripted) | a Playwright page sweep (the script is in the session notes) |
 | Phone width (390px): no sideways scrolling on the home page or Customer Radar | Author-tested (scripted) | Playwright at 390×844 |
-| The demo fits 2:45 with real clicks and a real AI note | A captioned draft recording of the real clicks runs 2:44 (`docs/submission/demo-draft.webm`, regenerate with `node scripts/demo/record.mjs && node scripts/demo/encode.mjs`). **A human voiceover take is still to do.** | the recording scripts |
+| Switching accounts or signing out never shows the previous account's lists or notes, even while the next account's lists are still loading. Guest lists stay out of accounts unless moved | Author-tested in the real app in Chrome, with Supabase fully mocked in the browser (fake test sessions, no real accounts, nothing sent) | `npx playwright test e2e/account-switch.spec.ts` |
+| The demo fits with real clicks and a real AI note | The captioned draft recording of the real clicks is **164.7s** of encoded video, measured from the file, with the last frame showing the closing line. The script clock ended at 165.5s; the difference is the moment before the first frame. Captions show one sentence at a time, sized for phone playback. **A human voiceover take is still to do** (or submit the captioned version if the event allows) | `node scripts/demo/record.mjs && node scripts/demo/encode.mjs` |
 
 **Not yet checked by anyone:**
-- **Account switching in a browser with two real accounts.** It's covered in code and by database-level row security, but not run by hand.
-- **The deployed public build.** It's not deployed yet.
+- **The deployed public build.** It isn't deployed yet. Once it is, run the release check below on the real URL in a fresh browser.
+
+## Release check on the public URL (once deployed)
+
+1. **As a guest:** open the case study, then a finding, then its rows, and check the total matches.
+2. **Sign up, then sign in:** start a follow-up list and mark one customer contacted.
+3. **Reload the page:** the list is still there, with its status and contact day.
+4. **Write with AI:** the note appears with its "checked" label. Then run Recheck on practice data.
+5. **Reset your password by email:** the link returns to the site and lets you set a new password.
+6. **Sign out:** the list disappears from the screen. Sign in again, and it's back.
+7. **Kill the network briefly:** the app shows an error and a working "Try again".
 
 ## Merchant check (to do, and the most important gap)
 

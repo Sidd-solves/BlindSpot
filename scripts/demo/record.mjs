@@ -19,17 +19,27 @@ cdp.on('Page.screencastFrame', async (f) => {
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 72, maxWidth: 1440, maxHeight: 900, everyNthFrame: 1 });
 const T0 = Date.now();
 const at = async (sec) => { const w = T0 + sec * 1000 - Date.now(); if (w > 0) await p.waitForTimeout(w); };
-const cap = async (i) => p.evaluate((t) => {
+const cap = async (i) => p.evaluate(([t, secs]) => {
   let el = document.getElementById('__cap');
   if (!el) {
     el = document.createElement('div'); el.id = '__cap';
-    Object.assign(el.style, { position: 'fixed', left: '50%', bottom: '28px', transform: 'translateX(-50%)', maxWidth: '1040px', zIndex: 99999,
-      padding: '12px 20px', borderRadius: '14px', background: 'rgba(8,8,20,.82)', color: '#fff', font: '600 21px/1.35 Manrope, system-ui, sans-serif',
+    Object.assign(el.style, { position: 'fixed', left: '50%', bottom: '18px', transform: 'translateX(-50%)', maxWidth: '1180px', zIndex: 99999,
+      padding: '12px 20px', borderRadius: '14px', background: 'rgba(8,8,20,.82)', color: '#fff', font: '700 30px/1.3 Manrope, system-ui, sans-serif',
       textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.12)', pointerEvents: 'none' });
     document.body.appendChild(el);
   }
-  el.textContent = t;
-}, lines[i]);
+  // One sentence at a time, each shown for a share of the scene proportional to its words.
+  clearTimeout(window.__capT);
+  const parts = t.match(/[^.!?:]+[.!?:]+["”]?|[^.!?:]+$/g).map((x) => x.trim()).filter(Boolean);
+  const words = parts.map((x) => x.split(/\s+/).length), total = words.reduce((a, b) => a + b, 0);
+  let k = 0;
+  const show = () => {
+    el.textContent = parts[k];
+    if (k < parts.length - 1) window.__capT = setTimeout(() => { k++; show(); }, (words[k] / total) * secs * 1000);
+  };
+  show();
+}, [lines[i], SLOTS[i]]);
+const SLOTS = [14, 16, 15, 23, 22, 20, 35, 13, 7];
 const log = [];
 const mark = (l) => log.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${l}`);
 // 0:00 hook

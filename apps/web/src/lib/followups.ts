@@ -32,11 +32,13 @@ export interface FollowAccount {
   /** Why the owner chose not to contact this customer (their judgement overrides the rule; kept as evidence). */
   skipReason?: SkipReason | null;
 }
-export type SkipReason = 'seasonal' | 'closed' | 'switched' | 'other';
+/** The owner's own reason (what they believe, not something BlindSpot checked). Optional. */
+export type SkipReason = 'notnow' | 'seasonal' | 'closed' | 'switched' | 'other';
 export const SKIP_REASONS: { id: SkipReason; label: string }[] = [
+  { id: 'notnow', label: 'Not now' },
   { id: 'seasonal', label: 'Seasonal buyer' },
   { id: 'closed', label: 'Closed or moved' },
-  { id: 'switched', label: 'Buys elsewhere now' },
+  { id: 'switched', label: 'Buys elsewhere' },
   { id: 'other', label: 'Other reason' },
 ];
 export interface CheckAccount {
