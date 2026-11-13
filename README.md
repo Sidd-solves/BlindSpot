@@ -1,8 +1,5 @@
 # Blindspot
 
-> **Work in progress, not part of any hackathon submission.** This branch holds features built *after* the
-> submissions were made. Judges: please evaluate the submitted version on the `main` branch and the live site.
-
 [![CI](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml) ![Tests](https://img.shields.io/badge/tests-274%20passing-34d399) ![Coverage](https://img.shields.io/badge/coverage-84%25%20engine%20%2B%20API-22d3ee) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Lint](https://img.shields.io/badge/ESLint-0%20problems-8b5cf6) [![License: MIT](https://img.shields.io/badge/license-MIT-a78bfa)](LICENSE)
 
 **Your best customers don't say goodbye. BlindSpot helps independent online shops find the valuable customers who have gone quiet, check the evidence, reach out, and see who comes back.**
