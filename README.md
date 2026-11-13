@@ -3,22 +3,24 @@
 > **Work in progress, not part of any hackathon submission.** This branch holds features built *after* the
 > submissions were made. Judges: please evaluate the submitted version on the `main` branch and the live site.
 
-[![CI](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml) ![Tests](https://img.shields.io/badge/tests-259%20passing-34d399) ![Coverage](https://img.shields.io/badge/coverage-84%25%20engine%20%2B%20API-22d3ee) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Lint](https://img.shields.io/badge/ESLint-0%20problems-8b5cf6) [![License: MIT](https://img.shields.io/badge/license-MIT-a78bfa)](LICENSE)
+[![CI](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml/badge.svg)](https://github.com/Sidd-solves/BlindSpot/actions/workflows/ci.yml) ![Tests](https://img.shields.io/badge/tests-274%20passing-34d399) ![Coverage](https://img.shields.io/badge/coverage-84%25%20engine%20%2B%20API-22d3ee) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![Lint](https://img.shields.io/badge/ESLint-0%20problems-8b5cf6) [![License: MIT](https://img.shields.io/badge/license-MIT-a78bfa)](LICENSE)
 
 **Your best customers don't say goodbye. BlindSpot helps independent online shops find the valuable customers who have gone quiet, check the evidence, reach out, and see who comes back.**
 
 ## The problem
 
-A regular customer doesn't announce they're leaving. They stop ordering, and the sales total still looks fine. That matters because repeat customers separate the shops that make money from those that don't: among 1,100+ owners, 29.0% of shops getting under a quarter of revenue from repeat buyers were unprofitable, against 7.7% of shops getting over half ([Small Business Expo, 2026](https://www.thesmallbusinessexpo.com/blog/repeat-customers-profitability/); an association, not proof). Yet 53% of small and mid-size businesses don't know what their own data could tell them ([AWS, 2023](https://aws.amazon.com/blogs/smb/why-small-and-medium-businesses-are-missing-out-on-the-full-benefits-data-can-provide)), and only 30% use CRM or loyalty data ([PYMNTS, 2026](https://www.pymnts.com/report/study/the-smb-growth-gap-what-leaders-track-that-others-miss/)). More sources: [docs/submission/WRITEUP.md](docs/submission/WRITEUP.md).
+A regular customer doesn't announce they're leaving. They stop ordering, and the sales total still looks fine. Why it matters: in one survey of 1,100+ owners, 29.0% of businesses getting under a quarter of revenue from repeat customers reported being unprofitable, against 7.7% of those getting over half ([Small Business Expo, 2026](https://www.thesmallbusinessexpo.com/blog/repeat-customers-profitability/); an association, not proof of cause). And 53% of SMB executives in a vendor survey said they don't know what insights their data could provide ([AWS, 2023](https://aws.amazon.com/blogs/smb/why-small-and-medium-businesses-are-missing-out-on-the-full-benefits-data-can-provide)). Sources and scope: [docs/submission/WRITEUP.md](docs/submission/WRITEUP.md).
 
 ## The loop: find, decide, act, recheck
 
 1. **Find** the top customers with no order in 90 days, each with their usual order rhythm and share of the total (so one big account can't pass for a trend).
 2. **Decide** who to contact after opening the exact rows behind every amount.
-3. **Act**: Claude drafts a short personal note for each. Log who you reached and keep notes. Nothing is sent for you.
-4. **Recheck** with a newer export: matched by exact customer ID, BlindSpot shows who ordered again and what they spent, with unmatched IDs listed and other customers as context. It never claims the contact caused the reorder.
+3. **Act**: Claude drafts a short note for each, checked before you see it (no amounts, periods or invented discounts; never says the customer left; only products they bought; one rewrite, then the plain template). You send it and log the day; it can be corrected.
+4. **Recheck** with a newer export from the same shop. Matched by exact customer ID (as text, leading zeros kept), it reports orders **since the list** and orders on days **strictly after each customer's own contact day** (same-day orders are counted apart, since exports have dates, not times). It lists IDs not found, warns if the file has stretches with no data at all, refuses while filters are on, and asks before checking a file with a different name. It never claims a contact caused a reorder.
 
-**Practice on past data** runs the whole loop on the case study's real history: a list made as of Sep 1, 2011 flagged 14 quiet top customers; 7 ordered again within 100 days (£16,044 in real orders), while 53% of other repeat customers also ordered in that window. Lists save to your account (Supabase, row-level security) or, as a guest, your browser.
+**Practice on past data** (historical replay, no outreach recorded) runs the recheck on the case study's real history: a list made as of Sep 1, 2011 flagged 14 quiet top customers, and 7 ordered again within 100 days (£16,044 in recorded orders). Nobody was contacted; it demonstrates the recheck, not an outreach effect.
+
+**Saved lists** are frozen when made: list date, data name, currency, rule and each customer's selection figures never change; only status, contact day, note and the latest recheck do ([rules and tests](tests/followup-rules.test.ts)). Signed in, lists live in Supabase with row-level security; [scripts/rls-check.sql](scripts/rls-check.sql) shows user A can't read, change, delete or forge user B's lists, and signed-out visitors see none. As a guest, lists stay in this browser (with a Clear button for shared computers).
 
 ## Everything else it checks
 

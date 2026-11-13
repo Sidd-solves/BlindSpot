@@ -335,26 +335,52 @@ export function winBackList(ds: Dataset, shopName = 'our shop'): WinBack {
  * cleaning report are kept for those rows only, so a replay never sees anything from after its own date. */
 export function sliceBefore(ds: Dataset, asOf: string): Dataset {
   const fm = detectFields(ds);
-  const t = Date.parse(`${asOf}T00:00:00Z`);
+  const t = parseDay(asOf);
   if (!fm.date || !Number.isFinite(t)) return ds;
   const rows = ds.rows.filter((r: Row) => toMs(r[fm.date!]) < t);
   return { ...ds, rows, prep: ds.prep ? { ...ds.prep, scope: 'filtered' as const } : ds.prep };
 }
 
+/** A real calendar day in YYYY-MM-DD (rejects 2025-02-30), as UTC midnight ms, or NaN. */
+export function parseDay(d: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return NaN;
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return Number.isFinite(t) && isoDay(t) === d ? t : NaN;
+}
+
+export type FollowOutcome = 'reordered' | 'no-order-seen' | 'not-found';
 export interface FollowUpAccount {
   customer: string;
-  /** Found anywhere in the newer data (matched by the exact customer ID, never by a similar name). */
+  /** Found anywhere in the newer data (matched by the exact customer ID string, never by a similar name). */
   found: boolean;
+  outcome: FollowOutcome;
   lastBefore: string | null;
+  /** Orders dated on or after the list date. Returns excluded. */
   ordersAfter: number;
-  /** Product sales on orders dated on or after the follow-up date. Returns excluded. */
   salesAfter: number;
   firstOrderAfter: string | null;
+  /** The owner's recorded contact day, if any. */
+  contactedOn: string | null;
+  /** Orders on days strictly after the contact day (sales data has dates, not times). */
+  ordersAfterContact: number;
+  salesAfterContact: number;
+  /** Orders on the contact day itself: before or after the contact can't be told apart. */
+  sameDayOrders: number;
+}
+export interface Coverage {
+  from: string;
+  to: string;
+  /** Longest run of calendar days in the window with no rows at all (any customer). */
+  longestGapDays: number;
+  gapFrom: string | null;
+  gapTo: string | null;
+  /** True when the gap is long enough that "no order seen" may just be missing data. */
+  thin: boolean;
 }
 export interface FollowUp {
   ok: boolean;
   reason?: string;
-  /** The day the list was made: orders on or after it count as "ordered again". */
+  /** The day the list was made: orders on or after it count as "ordered since the list". */
   since: string;
   /** The last day in the newer data. */
   dataEnd: string;
@@ -364,18 +390,61 @@ export interface FollowUp {
   unmatched: string[];
   orderedAgain: number;
   salesAfter: number;
-  /** The same check for every other repeat customer who wasn't on the list, as context (not a control group). */
+  /** Customers with a contact day: how many ordered on a later day, and what they spent then. */
+  contacted: { customers: number; orderedAfter: number; salesAfter: number; sameDay: number };
+  /** Matched customers with no contact day: how many ordered since the list. */
+  notContacted: { customers: number; orderedSince: number };
+  coverage: Coverage | null;
+  /** Repeat customers (2+ orders before the date) not on the list who ordered in the same window. Context only. */
   baseline: { customers: number; orderedAgain: number } | null;
   note: string;
 }
 
-/** Which of the listed customers ordered again on or after `since`, and what they bought, read from this data. */
-export function followUpCheck(ds: Dataset, since: string, ids: string[]): FollowUp {
+/** The longest stretch of days between `from` and `to` (inclusive) with no rows at all. */
+function gaps(ds: Dataset, from: number, to: number): Coverage {
+  const fm = detectFields(ds);
+  const days = new Set<number>();
+  for (const r of ds.rows as Row[]) {
+    const t = toMs(r[fm.date!]);
+    if (t >= from && t <= to) days.add(Math.floor(t / DAY));
+  }
+  let best = 0,
+    bestAt = -1,
+    run = 0;
+  for (let d = Math.floor(from / DAY); d <= Math.floor(to / DAY); d++) {
+    if (days.has(d)) run = 0;
+    else if (++run > best) {
+      best = run;
+      bestAt = d;
+    }
+  }
+  return {
+    from: isoDay(from),
+    to: isoDay(to),
+    longestGapDays: best,
+    gapFrom: best ? isoDay((bestAt - best + 1) * DAY) : null,
+    gapTo: best ? isoDay(bestAt * DAY) : null,
+    thin: best >= 21,
+  };
+}
+
+/**
+ * Which of the listed customers ordered again, read from this data. Two clocks: "since the list" (orders on or
+ * after `since`) and "after contact" (orders on days strictly after each customer's own contact day; same-day
+ * orders are counted apart because the data has no times). IDs are deduplicated and matched exactly as strings.
+ */
+export function followUpCheck(
+  ds: Dataset,
+  since: string,
+  rawIds: string[],
+  contacts: Record<string, string> = {},
+): FollowUp {
+  const ids = [...new Set(rawIds.map(String))];
   const orders = ordersOf(ds);
-  const t0 = Date.parse(`${since}T00:00:00Z`);
+  const t0 = parseDay(since);
   const end = endOf(ds);
   const note =
-    'Counts real orders in this data. It shows who ordered again after the list was made, not that contacting them caused it.';
+    'Counts real orders in this data. It shows who ordered after the list was made or after a recorded contact, not that contacting them caused it.';
   const base = {
     since,
     dataEnd: end ? isoDay(end - DAY) : '',
@@ -391,10 +460,13 @@ export function followUpCheck(ds: Dataset, since: string, ids: string[]): Follow
     unmatched: ids,
     orderedAgain: 0,
     salesAfter: 0,
+    contacted: { customers: 0, orderedAfter: 0, salesAfter: 0, sameDay: 0 },
+    notContacted: { customers: 0, orderedSince: 0 },
+    coverage: null,
     baseline: null,
   });
   if (!orders.length) return fail('This data has no dated sales with customer IDs to check against.');
-  if (!Number.isFinite(t0)) return fail('The follow-up date is missing.');
+  if (!Number.isFinite(t0)) return fail('The list date is not a real calendar date.');
   if (end <= t0)
     return fail(
       `This data ends on ${base.dataEnd}, before the list was made on ${since}. Upload a newer export to see who ordered again.`,
@@ -405,30 +477,43 @@ export function followUpCheck(ds: Dataset, since: string, ids: string[]): Follow
     l.push(o);
     by.set(o.customer, l);
   }
+  for (const l of by.values()) l.sort((a, b) => a.t - b.t);
   const want = new Set(ids);
   const accounts: FollowUpAccount[] = ids.map((customer) => {
+    const cRaw = contacts[customer];
+    const tc = cRaw ? parseDay(cRaw) : NaN;
+    const contactedOn = Number.isFinite(tc) ? cRaw : null;
     const l = by.get(customer);
-    if (!l)
-      return {
-        customer,
-        found: false,
-        lastBefore: null,
-        ordersAfter: 0,
-        salesAfter: 0,
-        firstOrderAfter: null,
-      };
+    const blank = {
+      customer,
+      lastBefore: null,
+      ordersAfter: 0,
+      salesAfter: 0,
+      firstOrderAfter: null,
+      contactedOn,
+      ordersAfterContact: 0,
+      salesAfterContact: 0,
+      sameDayOrders: 0,
+    };
+    if (!l) return { ...blank, found: false, outcome: 'not-found' as const };
     const before = l.filter((o) => o.t < t0),
       after = l.filter((o) => o.t >= t0);
+    const dc = Number.isFinite(tc) ? Math.floor(tc / DAY) : null;
+    const afterC = dc === null ? [] : l.filter((o) => Math.floor(o.t / DAY) > dc);
+    const same = dc === null ? 0 : l.filter((o) => Math.floor(o.t / DAY) === dc).length;
     return {
-      customer,
+      ...blank,
       found: true,
+      outcome: after.length ? ('reordered' as const) : ('no-order-seen' as const),
       lastBefore: before.length ? isoDay(before[before.length - 1].t) : null,
       ordersAfter: after.length,
       salesAfter: round2(after.reduce((s, o) => s + o.total, 0)),
       firstOrderAfter: after.length ? isoDay(after[0].t) : null,
+      ordersAfterContact: afterC.length,
+      salesAfterContact: round2(afterC.reduce((s, o) => s + o.total, 0)),
+      sameDayOrders: same,
     };
   });
-  // Context: other customers with 2+ orders before the date, how many ordered again in the same window.
   let others = 0,
     othersBack = 0;
   for (const [c, l] of by) {
@@ -438,6 +523,8 @@ export function followUpCheck(ds: Dataset, since: string, ids: string[]): Follow
     if (l.some((o) => o.t >= t0)) othersBack++;
   }
   const matched = accounts.filter((a) => a.found);
+  const withC = matched.filter((a) => a.contactedOn),
+    noC = matched.filter((a) => !a.contactedOn);
   return {
     ok: true,
     ...base,
@@ -446,6 +533,14 @@ export function followUpCheck(ds: Dataset, since: string, ids: string[]): Follow
     unmatched: accounts.filter((a) => !a.found).map((a) => a.customer),
     orderedAgain: matched.filter((a) => a.ordersAfter > 0).length,
     salesAfter: round2(matched.reduce((s, a) => s + a.salesAfter, 0)),
+    contacted: {
+      customers: withC.length,
+      orderedAfter: withC.filter((a) => a.ordersAfterContact > 0).length,
+      salesAfter: round2(withC.reduce((s, a) => s + a.salesAfterContact, 0)),
+      sameDay: withC.filter((a) => a.sameDayOrders > 0 && !a.ordersAfterContact).length,
+    },
+    notContacted: { customers: noC.length, orderedSince: noC.filter((a) => a.ordersAfter > 0).length },
+    coverage: gaps(ds, t0, end - DAY),
     baseline: others ? { customers: others, orderedAgain: othersBack } : null,
     note,
   };

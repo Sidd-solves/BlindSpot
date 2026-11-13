@@ -144,7 +144,7 @@ export default function How() {
             </span>,
           ],
         ]}
-        sub="Four stages, all in code you can read: clean the file, run every check, prove each amount on its rows, then let Claude explain it, with every figure checked."
+        sub="Four stages, all in code you can read: clean the file, run every check, tie each amount to its exact rows, then let Claude explain it, with each number it writes matched against the results."
         chips={[
           {
             icon: <Layers size={14} />,

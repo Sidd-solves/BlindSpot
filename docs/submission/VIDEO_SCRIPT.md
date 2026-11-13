@@ -1,30 +1,81 @@
-# BlindSpot demo video: script (2:45)
+# BlindSpot demo video: full script (2:45)
 
-Built on four rules: name the person and their frustration in the first 15 seconds; have the product on screen by then; prove it by 90 seconds; end on what life looks like after. Every number on screen is real and shown in the app.
+**Rules it follows:**
+- Name the person and their frustration in the first 15 seconds, with the product on screen by then.
+- Show the core loop by 1:30.
+- End on what changes for the owner.
+- Every number on screen is real and visible in the app.
+- Every claim matches what the data can support.
 
-**Recording setup:** 1440×900 browser, case study loaded (Data Sources → "Switch to this shop"), signed in, Customer Radar list cleared, cursor highlight on. Speak slowly; leave one beat of silence after each number.
+**Timing:** the narration below is 346 words. At a calm 140 words per minute that's about 2:28, which leaves about 17 seconds for clicks and loading. Do a timed read-through before recording. If it runs over, cut the 2:28–2:40 scene first.
 
-| Time | On screen | Voiceover |
-|---|---|---|
-| **0:00–0:12** *Hook* | Home hero: "Your best customers don't say goodbye." The sunset scene. | "Your best customer won't tell you they're leaving. They just stop ordering. And your sales chart keeps going up, so nobody notices." |
-| **0:12–0:30** *Why it matters* | Scroll to The problem. Each evidence row counts up: 29.0% vs 7.7%, then 53%, then 30%. | "Shops that keep their regulars are far less likely to lose money: 29 percent unprofitable versus under 8. But half of small businesses don't know what their own data could tell them, and only 30 percent track customers at all. Big retailers pay analysts for this. A small shop has a spreadsheet." |
-| **0:30–0:45** *Meet BlindSpot* | Click "See it on a real shop". The Overview loads with the AI briefing, its figures underlining green as they verify. | "This is BlindSpot, on a real UK shop's sales records. It reads the export as it is: Shopify, a spreadsheet, a PDF, even a photo. Claude writes the briefing, and every number it writes is checked against the math. Green means verified." |
-| **0:45–1:10** *Find* | Customer Radar → the Follow-up card. 10 customers, £93,531. The amber "one account is 41%" note. | "Here's the finding that matters. Ten of this shop's best customers have gone quiet: 93 thousand pounds in the year before. And BlindSpot doesn't hide the catch: one account is 41 percent of that, with only a few orders. So you see each customer's rhythm, not just a big number." |
-| **1:10–1:30** *Proof* | Click a finding's "See the affected rows". The exact rows, total reconciled to the penny. Back to Radar: "Did the warning work before?" bars. | "Every amount opens into the exact rows behind it, adding up to the penny. And the rule is tested on the shop's own past: customers it flagged stayed away far more often than everyone else. But most still came back, which is exactly why you should call them." |
-| **1:30–1:55** *Decide and act* | Tick four customers → "Start a list with 4". Expand one → "Write with AI" → the personal note appears. Click "Contacted". | "So you decide who to call. Tick them, start a list. For each one, Claude drafts a short, personal note from what they used to buy. Nothing is sent for you. You send it, then mark who you reached." |
-| **1:55–2:25** *Recheck: the loop closes* | Switch to "Practice on past data". Select all → start → "Check against the real orders that came next". The ring fills: 7 of 14, £16,044. The context bar shows 53%. | "Then comes the part no dashboard does. Upload your next export and BlindSpot checks who ordered again. Here's a practice run on this shop's real history: of 14 quiet customers, 7 came back, spending 16 thousand pounds. It shows other regulars too, and says plainly: this is what happened, not proof the email caused it." |
-| **2:25–2:40** *Life after* | Account page: the saved list with notes. Quick cuts: the analyst answering a question, a PDF upload. | "Your lists, notes and checks are saved to your account. Next month, you're not guessing which regulars to call. You know, and you can see if it worked." |
-| **2:40–2:45** *Close* | Logo on the sunset. "Your best customers don't say goodbye. Now you'll notice." | "BlindSpot. Your best customers don't say goodbye. Now you'll notice." |
+**Before recording:**
+- Browser at 1440×900, cursor highlight on.
+- Signed in, with the case study loaded (Data Sources → "Switch to this shop").
+- Customer Radar with no open list.
+- Filters cleared.
+- Captions burned in.
+
+---
+
+### 0:00–0:14 · The hook
+**On screen:** home hero, "Your best customers don't say goodbye."
+
+> "Your best customer won't tell you they're leaving. They just stop ordering. And because your total sales still look fine, nobody notices."
+
+### 0:14–0:30 · Why it matters
+**On screen:** scroll to "Why this problem matters". The three cards count up.
+
+> "In one survey, businesses getting more revenue from repeat customers were far less likely to report a loss. In another, half of small-business leaders didn't know what their own data could tell them. Big retailers pay analysts for this. A small shop has a spreadsheet."
+
+### 0:30–0:45 · Meet BlindSpot
+**On screen:** click "See it on a real shop". The Overview loads, and the AI briefing's numbers underline green.
+
+> "This is BlindSpot, running on public historical sales records from a UK online shop, a sample of its customers. Claude writes the briefing, and every number it writes is matched against the analysis. Green means it matched."
+
+### 0:45–1:08 · Find
+**On screen:** Customer Radar → the Follow-up card: 10 customers, £93,531, and the amber "one account is 41%" note.
+
+> "Here's what the total hides. Ten of this shop's best customers have gone quiet: ninety-three thousand pounds the year before. And BlindSpot shows the catch: one account is forty-one percent of that, with only a few orders. So you see each customer's rhythm, not just a big number."
+
+### 1:08–1:25 · Evidence
+**On screen:** a finding's "See the affected rows", reconciled to the penny. Back to Radar: "Did the warning work before?"
+
+> "Every amount opens into the exact rows behind it. And the rule was tested on this shop's own past: customers it flagged were far more likely to stay away. But most still came back. So this is a list to review first, not a list of lost customers."
+
+### 1:25–1:48 · Decide and act
+**On screen:** tick four customers → "Start a list with 4". Expand one → "Write with AI". The note appears with "passed checks". Mark it Contacted, and the day appears.
+
+> "So you choose who to contact. Claude drafts a short note about what each one used to buy, checked before you see it: no amounts, no invented discounts, no telling them they've left. You send it yourself, and BlindSpot logs the day."
+
+### 1:48–2:28 · Recheck
+**On screen:** "New list" → "Practice on past data". The blue "Historical replay: no outreach recorded" banner. Select all → start → "Check the shop's real later orders". The ring fills: 7 of 14, £16,044, and the window read.
+
+> "Later, you upload a newer export, and BlindSpot checks who ordered again: after the list, and after each customer's own contact day, so an order placed before your email never counts. It also warns you if the file has gaps. Here it is on this shop's real history, where no one was contacted: of fourteen quiet customers, seven ordered again within a hundred days."
+
+### 2:28–2:40 · What changes
+**On screen:** the Account → Follow-ups tab with the saved list. A quick cut to the analyst answering a question.
+
+> "Your lists and notes are saved privately to your account. Next month you won't be guessing which regulars to call. You'll know who to review, and see who ordered afterward."
+
+### 2:40–2:45 · Close
+**On screen:** logo on the sunset, with "Your best customers don't say goodbye. Now you'll notice."
+
+> "BlindSpot. Your best customers don't say goodbye. Now you'll notice."
+
+---
 
 ## Delivery notes
 
-- **Rehearse the first 30 seconds out loud** until it lands without notes. That stretch decides how closely a judge watches the rest.
+- **Rehearse 0:00–0:30 out loud** until it lands without notes. That stretch decides how closely a judge watches the rest.
+- **Say every number slowly,** and keep it on screen while you say it.
+- **Keep the honesty lines:** "a sample of its customers", "most still came back", "no one was contacted". They're why a judge believes the rest.
+- **Never call £16,044 recovered revenue.** It's what customers ordered in the shop's real records, with no outreach.
 - **One idea per scene.** Don't narrate menus. Say what the owner gets.
-- **Say numbers slowly**, and keep each one on screen while you say it.
-- **Keep honesty in the voice.** Saying "most came back" and "not proof the email caused it" builds trust, so don't cut those lines.
-- **Cut, don't rush.** If you run long, trim the 2:25–2:40 cuts first and never the recheck.
-- **Captions:** burn them in. Many judges watch muted.
 
 ## Thumbnail
 
-Dark sunset background. Left: a rising bar chart with one amber segment fading out at the bottom. Right: "Your best customers don't say goodbye." in large white type, "BlindSpot" underneath with its logo. No other text. File: `docs/submission/thumbnail.png` (1280×720, built from `thumbnail.html`).
+`docs/submission/thumbnail.png` (1280×720, built from `thumbnail.html`):
+- Background: dark sunset with hill silhouettes.
+- Left: a rising bar chart with one amber "regular" segment fading out, labeled "went quiet".
+- Right: "Your best customers don't say goodbye." with the BlindSpot logo underneath.

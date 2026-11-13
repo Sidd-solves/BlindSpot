@@ -1,8 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { ArrowRight, FileSpreadsheet, FileText, Plus, UploadCloud, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Camera,
+  Check,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Plus,
+  UploadCloud,
+  X,
+} from 'lucide-react';
 import { useStore } from '../store';
 import { Loading } from './ui';
+import { isPhoto, readPhoto, tableToCsv, type PhotoTable } from '../lib/fileText';
 
 export const ACCEPT =
   '.csv,.tsv,.txt,.tab,.xlsx,.xlsm,.xls,.ods,.numbers,.pdf,.png,.jpg,.jpeg,.webp,text/csv,application/pdf,image/png,image/jpeg,image/webp';
@@ -33,10 +44,27 @@ export function UploadZone({
   const { upload, stageFiles, unstage, readStaged } = useStore();
   const [drag, setDrag] = useState(false),
     [err, setErr] = useState(''),
-    [mine, setMine] = useState(false);
+    [mine, setMine] = useState(false),
+    [photo, setPhoto] = useState<PhotoTable | null>(null),
+    [reading, setReading] = useState(false);
   const staged = upload.staged;
+  // A photo is read by AI first and shown for review; only the table the owner approves is staged.
+  const readOne = async (f: File) => {
+    setReading(true);
+    setErr('');
+    try {
+      setPhoto(await readPhoto(f));
+    } catch (e: any) {
+      setErr(e?.message ?? 'Reading the photo failed. Try a clearer photo.');
+    }
+    setReading(false);
+  };
   const add = (list?: FileList | null) => {
-    const files = [...(list ?? [])];
+    const all = [...(list ?? [])];
+    const pics = all.filter(isPhoto);
+    if (pics.length) void readOne(pics[0]);
+    if (pics.length > 1) setErr('Photos are reviewed one at a time: the first one is open now.');
+    const files = all.filter((f) => !isPhoto(f));
     if (!files.length) return;
     setErr('');
     const big = files.find((f) => f.size > 25e6);
@@ -55,6 +83,19 @@ export function UploadZone({
   const busy = mine && !!upload.busy;
   return (
     <div className="space-y-2">
+      <AnimatePresence>
+        {(reading || photo) && (
+          <PhotoReview
+            photo={photo}
+            reading={reading}
+            onCancel={() => setPhoto(null)}
+            onUse={(t) => {
+              stageFiles([new File([tableToCsv(t.columns, t.table)], t.name, { type: 'text/csv' })]);
+              setPhoto(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence initial={false}>
         {staged.map((f, i) => {
           const pdf = /\.pdf$/i.test(f.name),
@@ -184,5 +225,108 @@ export function UploadZone({
         <div className="text-[11.5px] text-[var(--rose)]">{err || upload.error}</div>
       )}
     </div>
+  );
+}
+
+/** The table AI read from a photo, editable cell by cell, shown before anything is analysed. */
+function PhotoReview({
+  photo,
+  reading,
+  onCancel,
+  onUse,
+}: {
+  photo: PhotoTable | null;
+  reading: boolean;
+  onCancel: () => void;
+  onUse: (t: PhotoTable) => void;
+}) {
+  const [rows, setRows] = useState<(string | number | null)[][] | null>(null);
+  const table = rows ?? photo?.table ?? [];
+  const blank = table.reduce((n, r) => n + r.filter((v) => v === null || v === '').length, 0);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      className="rounded-xl border p-3"
+      style={{ borderColor: 'color-mix(in srgb, var(--fuchsia) 45%, var(--line))' }}
+    >
+      <div className="mb-2 flex items-center gap-2 text-[12.5px] font-extrabold">
+        <Camera size={14} style={{ color: 'var(--fuchsia)' }} />
+        {reading ? 'Reading the photo with AI…' : 'Check the table AI read from your photo'}
+      </div>
+      {reading || !photo ? (
+        <div className="flex items-center gap-2 py-4 text-[12px] text-[var(--muted)]">
+          <Loader2 size={14} className="animate-spin" /> Copying each printed cell into a table. Nothing is
+          analysed until you approve it.
+        </div>
+      ) : (
+        <>
+          <div className="mb-2 text-[11.5px] text-[var(--muted)]">
+            {table.length} rows · {photo.columns.length} columns{photo.title ? ` · “${photo.title}”` : ''}.
+            Click any cell to fix it.{' '}
+            {blank ? `${blank} cell(s) couldn’t be read (highlighted).` : 'Every cell was read.'}
+            {photo.unreadable.length > 0 && ` AI notes: ${photo.unreadable.slice(0, 3).join('; ')}`}
+          </div>
+          <div
+            className="max-h-[260px] overflow-auto rounded-lg border"
+            style={{ borderColor: 'var(--line)' }}
+          >
+            <table className="w-full border-collapse text-[11.5px]">
+              <thead className="sticky top-0" style={{ background: 'var(--panel-solid)' }}>
+                <tr>
+                  {photo.columns.map((c) => (
+                    <th key={c} className="whitespace-nowrap px-2 py-1 text-left font-bold">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {table.map((r, i) => (
+                  <tr key={i} className="border-t" style={{ borderColor: 'var(--line)' }}>
+                    {r.map((v, j) => (
+                      <td
+                        key={j}
+                        className="p-0"
+                        style={{
+                          background:
+                            v === null || v === ''
+                              ? 'color-mix(in srgb, var(--amber) 18%, transparent)'
+                              : undefined,
+                        }}
+                      >
+                        <input
+                          value={v ?? ''}
+                          onChange={(e) => {
+                            const next = table.map((x) => x.slice());
+                            next[i][j] = e.target.value;
+                            setRows(next);
+                          }}
+                          className="w-full min-w-[70px] bg-transparent px-2 py-1 outline-none focus:bg-[var(--line)]"
+                          aria-label={`${photo.columns[j]}, row ${i + 1}`}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 flex gap-1.5">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="btn btn-primary !h-8 text-[12px]"
+              onClick={() => onUse({ ...photo, table })}
+            >
+              <Check size={13} /> Use this table
+            </motion.button>
+            <button className="btn !h-8 text-[12px]" onClick={onCancel}>
+              <X size={13} /> Discard
+            </button>
+          </div>
+        </>
+      )}
+    </motion.div>
   );
 }

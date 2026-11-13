@@ -50,3 +50,40 @@ describe('follow-up check', () => {
     expect(r.reason).toMatch(/newer export/);
   });
 });
+
+describe('follow-up timing and coverage', () => {
+  it('counts only orders on days strictly after each contact, and same-day orders apart', () => {
+    // List made Jul 1; A orders Aug 15. Contacted Aug 20 → that order is BEFORE contact, never "after contact".
+    const late = followUpCheck(shop(), '2025-07-01', ['A'], { A: '2025-08-20' });
+    expect(late.accounts[0]).toMatchObject({ ordersAfter: 1, ordersAfterContact: 0, sameDayOrders: 0 });
+    expect(late.contacted).toEqual({ customers: 1, orderedAfter: 0, salesAfter: 0, sameDay: 0 });
+    // Contacted on the order day itself: timing unknown, counted apart, not as "after contact".
+    const same = followUpCheck(shop(), '2025-07-01', ['A'], { A: '2025-08-15' });
+    expect(same.accounts[0]).toMatchObject({ ordersAfterContact: 0, sameDayOrders: 1 });
+    expect(same.contacted.sameDay).toBe(1);
+    // Contacted before the order: counted.
+    const early = followUpCheck(shop(), '2025-07-01', ['A', 'B'], { A: '2025-08-01' });
+    expect(early.accounts[0]).toMatchObject({ ordersAfterContact: 1, salesAfterContact: 250 });
+    expect(early.notContacted).toEqual({ customers: 1, orderedSince: 0 });
+  });
+  it('dedupes IDs, rejects impossible dates, and reports gaps in coverage', () => {
+    const r = followUpCheck(shop(), '2025-07-01', ['A', 'A', 'B']);
+    expect(r.accounts.map((a) => a.customer)).toEqual(['A', 'B']);
+    expect(followUpCheck(shop(), '2025-02-30', ['A']).ok).toBe(false);
+    const bad = followUpCheck(shop(), '2025-07-01', ['A'], { A: '2025-13-01' });
+    expect(bad.accounts[0].contactedOn).toBeNull();
+    // The tiny shop only sells on the 10th of each month: long stretches with no rows at all → thin coverage.
+    expect(r.coverage?.thin).toBe(true);
+    expect(r.coverage?.longestGapDays).toBeGreaterThanOrEqual(21);
+    expect(r.accounts.find((a) => a.customer === 'B')?.outcome).toBe('no-order-seen');
+  });
+  it('keeps leading zeros in customer IDs as distinct strings', () => {
+    const ds = shop();
+    (ds.rows as any[]).push(
+      { OrderDate: '2025-09-01', Customer: '00123', Order: 'Z1', Sales: 10, Product: 'Mug', IsReturn: 0 },
+      { OrderDate: '2025-09-02', Customer: '123', Order: 'Z2', Sales: 20, Product: 'Mug', IsReturn: 0 },
+    );
+    const r = followUpCheck(ds, '2025-08-25', ['00123']);
+    expect(r.accounts[0]).toMatchObject({ found: true, ordersAfter: 1, salesAfter: 10 });
+  });
+});

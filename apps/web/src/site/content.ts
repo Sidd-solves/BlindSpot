@@ -60,58 +60,37 @@ export interface Evidence {
 export const EVIDENCE: Evidence[] = [
   {
     id: 'scale',
-    link: 'They carry the economy',
+    link: 'Who this is for',
     c: 'var(--sky)',
     stats: [{ v: 36.2, f: (n: number) => `${n.toFixed(1)}M` }],
-    claim: 'US small businesses. They employ 62.3 million people, 45.9% of private-sector workers.',
+    claim: 'small businesses in the US, employing 62.3 million people (45.9% of private-sector workers).',
     source: 'SBA Office of Advocacy, Feb 2026',
     url: 'https://advocacy.sba.gov/2026/02/03/advocacy-releases-frequently-asked-questions-about-small-businesses-2026/',
     caveat: '',
   },
   {
-    id: 'survival',
-    link: 'Most don’t last',
-    c: 'var(--amber)',
-    stats: [{ v: 34.7, f: pc }],
-    claim: 'of new business establishments are still open after 10 years. Half are gone within 5.',
-    source: 'US Bureau of Labor Statistics, 2013 cohort',
-    url: 'https://www.bls.gov/opub/ted/2024/34-7-percent-of-business-establishments-born-in-2013-were-still-operating-in-2023.htm',
-    caveat: '',
-  },
-  {
     id: 'repeat',
-    link: 'Repeat customers separate the survivors',
+    link: 'Repeat revenue and profit',
     c: 'var(--violet)',
     stats: [
       { v: 29.0, f: pc, c: 'var(--amber)' },
       { v: 7.7, f: pc, c: 'var(--emerald)' },
     ],
     claim:
-      'unprofitable among shops where repeat customers bring under 25% of revenue, vs shops where they bring over half.',
+      'reported being unprofitable among businesses getting under 25% of revenue from repeat customers, vs those getting over half. In one survey: higher repeat revenue went with fewer losses.',
     source: 'Small Business Expo survey of 1,100+ owners, 2026',
     url: 'https://www.thesmallbusinessexpo.com/blog/repeat-customers-profitability/',
-    caveat: 'An association, not proof of cause',
+    caveat: 'An association, not proof that keeping customers causes profit',
   },
   {
     id: 'blind',
-    link: 'Owners have the data but can’t read it',
+    link: 'Data they can’t use',
     c: 'var(--fuchsia)',
     stats: [{ v: 53, f: pc0 }],
-    claim: 'of small and mid-size businesses don’t know what insights their own data could give them.',
-    source: 'AWS survey of 800+ SMB leaders, 2023',
+    claim: 'of SMB executives in one survey said they don’t know what insights their data could provide.',
+    source: 'AWS survey of 800+ SMB leaders worldwide, 2023',
     url: 'https://aws.amazon.com/blogs/smb/why-small-and-medium-businesses-are-missing-out-on-the-full-benefits-data-can-provide',
-    caveat: 'Vendor survey',
-  },
-  {
-    id: 'tracking',
-    link: 'Few track customers properly',
-    c: 'var(--emerald)',
-    stats: [{ v: 30, f: pc0 }],
-    claim:
-      'use CRM or loyalty data to see where customers come from. 32% rely on conversations; 8% track nothing. Formal trackers were more than twice as likely to grow (51% vs 22%).',
-    source: 'PYMNTS Intelligence, 526 US SMBs, 2026',
-    url: 'https://www.pymnts.com/report/study/the-smb-growth-gap-what-leaders-track-that-others-miss/',
-    caveat: 'Growth link is a correlation',
+    caveat: 'Vendor survey of executives, not a census of shop owners',
   },
 ];
 
@@ -127,6 +106,7 @@ export const CASE = {
     back: 7,
     days: 100,
     salesText: '£16,044',
-    baselinePct: 53,
   },
+  /** docs/VALIDATION.md: flagged vs other top regulars staying away 180 days, two replay dates, 25% sample. */
+  validation: { flagged: '32–36%', others: '3–8%', p: 'p < 0.005' },
 };
