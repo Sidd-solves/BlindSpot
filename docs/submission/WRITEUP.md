@@ -6,14 +6,14 @@
 
 **The problem.** A shop's best customer doesn't say goodbye. They stop ordering, and the sales total still looks fine. In one survey of 1,100+ owners, 29.0% of businesses getting under a quarter of revenue from repeat customers reported being unprofitable, against 7.7% of those getting over half (Small Business Expo, 2026; an association, not proof). And 53% of SMB executives in an AWS survey didn't know what insights their own data could provide. Big retailers pay analysts for this. Small shops have an export.
 
-**What BlindSpot does.** Upload a Shopify, Etsy or Square export, a spreadsheet, a PDF, or a photo of a table (reviewed before use). Then:
+**What BlindSpot does.** Upload a Shopify, Etsy or Square export, a spreadsheet, a PDF, or a photo of a table. Then:
 
 1. **Find** top customers silent for 90 days, with each one's rhythm and share of the total.
 2. **Decide** who to contact, after opening the exact rows behind every amount.
 3. **Act**: Claude drafts a note for each; you send it and log the day.
-4. **Recheck** with a newer export: matched by customer ID, it shows who ordered after the list and after each contact, and flags gaps in the data.
+4. **Recheck** with a newer export from the same shop: matched by customer ID, it shows who ordered after the list and after each contact, and flags data gaps.
 
-**AI, checked.** Claude writes briefings and notes, reads photos, and answers questions with 21 read-only tools. Numbers it writes are matched against tool results; unmatched ones go back for correction. Notes are rejected if they quote money or periods, offer discounts, say the customer left, or name products they never bought.
+**AI, checked.** Claude writes briefings and notes, reads photos, and answers questions using 21 tools. Its numbers are matched against tool results; unmatched ones go back. Notes are rejected if they quote money or periods, offer discounts, or say the customer left; product names are filled in from the customer's own purchases.
 
 **Evidence.** On a public UK retailer's records (UCI Online Retail II), 10 quiet top accounts had spent £93,531.25 the year before, matched to the penny by a separate Python script. Replayed on that shop's past, flagged customers stayed away 32–36% of the time against 3–8% for other top regulars (Fisher p < 0.005 in both replays). Most came back: it's who to review first, not a list of losses.
 

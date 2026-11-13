@@ -79,9 +79,10 @@ export function AiWinback({
                 <span
                   className="ml-1 font-semibold"
                   style={{ color: 'var(--emerald)' }}
-                  title="Checked: no money, order counts or dates; no discounts; doesn't say they left; only products they bought."
+                  title="Checked: no amounts, order counts or dates; no discounts; doesn't say they left; product names are filled in from this customer's own purchases, and other products from the shop's catalogue are rejected. Not checked: a product name the shop doesn't sell. Read it before sending."
                 >
-                  · passed checks{d.checks.corrected ? ' after one rewrite' : ''}
+                  · checked{d.checks.corrected ? ' after one rewrite' : ''}: no amounts, dates or discounts;
+                  their own products
                 </span>
               )}
             </div>

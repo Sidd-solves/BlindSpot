@@ -87,3 +87,72 @@ describe('follow-up timing and coverage', () => {
     expect(r.accounts[0]).toMatchObject({ found: true, ordersAfter: 1, salesAfter: 10 });
   });
 });
+
+describe('follow-up-check tool guards', () => {
+  it('rejects contact days before the list or in the future, and refuses with filters on', async () => {
+    const { SessionState, ALL_TOOLS, callTool } = await import('@blindspot/tool-contracts');
+    void ALL_TOOLS;
+    const state = new SessionState(shop());
+    const ctx: any = { state, sessionId: 't', log: () => {} };
+    const before = await callTool(ctx, 'follow-up-check', {
+      since: '2025-07-01',
+      customers: ['A'],
+      contacts: { A: '2025-06-01' },
+    });
+    expect((before.data as any).ok).toBe(false);
+    expect((before.data as any).reason).toMatch(/before the list was made/);
+    const future = await callTool(ctx, 'follow-up-check', {
+      since: '2025-07-01',
+      customers: ['A'],
+      contacts: { A: '2999-01-01' },
+    });
+    expect((future.data as any).reason).toMatch(/in the future/);
+    const bad = await callTool(ctx, 'follow-up-check', { since: '2025-02-30', customers: ['A'] });
+    expect(bad.ok).toBe(false); // Zod rejects an impossible calendar day
+    state.filters.set('Product', ['Mug']);
+    const filtered = await callTool(ctx, 'follow-up-check', { since: '2025-07-01', customers: ['A'] });
+    expect((filtered.data as any).reason).toMatch(/Clear the filters/);
+  });
+});
+
+describe('win-back list matches the independent validation table', () => {
+  it('reproduces docs/VALIDATION.md: orders in the year, usual gap, silence and spend for all 10 accounts', async () => {
+    const { loadCaseStudy } = await import('../services/api/src/case-study');
+    const ds: any = (loadCaseStudy() as any).dataset ?? loadCaseStudy();
+    const got = winBackList(ds).customers.map((c) => [
+      c.customer,
+      c.orders,
+      c.typicalGapDays,
+      c.daysSilent,
+      c.spend,
+    ]);
+    expect(got).toEqual([
+      ['15749', 3, 97, 235, 37994.9],
+      ['16180', 8, 24, 100, 10254.18],
+      ['13027', 9, 33, 113, 9912],
+      ['17504', 13, 21, 206, 7096.33],
+      ['18260', 15, 16, 172, 5976.3],
+      ['12643', 9, 38, 128, 5545.02],
+      ['14016', 5, 54, 161, 5333.19],
+      ['14828', 6, 52, 196, 4028.82],
+      ['14105', 3, 100, 239, 3898.48],
+      ['14461', 6, 69, 148, 3492.03],
+    ]);
+  });
+  it('replays the quiet rule exactly as the Python script does', async () => {
+    const { quietRuleBacktest } = await import('@blindspot/analytics');
+    const { loadCaseStudy } = await import('../services/api/src/case-study');
+    const ds: any = (loadCaseStudy() as any).dataset ?? loadCaseStudy();
+    const r = quietRuleBacktest(ds).replays.map((x) => [
+      x.asOf,
+      x.flagged,
+      x.flaggedStayedAway,
+      x.others,
+      x.othersStayedAway,
+    ]);
+    expect(r).toEqual([
+      ['2011-03-10', 25, 8, 80, 6],
+      ['2011-06-10', 14, 5, 90, 3],
+    ]);
+  });
+});

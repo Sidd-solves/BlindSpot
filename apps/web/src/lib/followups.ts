@@ -66,6 +66,8 @@ export interface FollowCheck {
   accounts: CheckAccount[];
 }
 export interface FollowMeta {
+  /** The shop the owner says this list belongs to. Customer IDs are only compared within one shop. */
+  shop?: string;
   /** The last day of data the list was read from. */
   dataEnd: string;
   currency: string;
@@ -89,19 +91,40 @@ export interface FollowList {
 /** Merge an edit into a saved list, keeping every frozen field from the original (see the rules above). */
 export function applyEdit(orig: FollowList, next: FollowList): FollowList {
   const edits = new Map(next.accounts.map((a) => [a.customer, a]));
-  return {
-    ...orig,
-    name: next.name.slice(0, 120),
-    last_check: next.last_check,
-    accounts: orig.accounts.map((a) => {
-      const e = edits.get(a.customer);
-      if (!e) return a;
-      const status: Status = orig.replay && e.status === 'contacted' ? a.status : e.status;
-      const contactedOn =
-        status === 'contacted' ? (validDay(e.contactedOn) ? e.contactedOn : (a.contactedOn ?? null)) : null;
-      return { ...a, status, contactedOn, note: (e.note ?? '').slice(0, 500) };
-    }),
-  };
+  const accounts = orig.accounts.map((a) => {
+    const e = edits.get(a.customer);
+    if (!e) return a;
+    const status: Status = orig.replay && e.status === 'contacted' ? a.status : e.status;
+    const contactedOn =
+      status === 'contacted' ? (validDay(e.contactedOn) ? e.contactedOn : (a.contactedOn ?? null)) : null;
+    return { ...a, status, contactedOn, note: (e.note ?? '').slice(0, 500) };
+  });
+  // A recheck answers for the contacts as they were. If who was contacted, or when, changes, it's out of date.
+  const moved = accounts.some(
+    (a, i) => a.status !== orig.accounts[i].status || a.contactedOn !== orig.accounts[i].contactedOn,
+  );
+  return { ...orig, name: next.name.slice(0, 120), last_check: moved ? null : next.last_check, accounts };
+}
+
+/** Which shop the owner said each loaded export belongs to (dataset id → shop), kept in this browser. */
+const ASSIGN = 'blindspot.shop-of-export.v1';
+export function assignedShop(datasetId: string | null | undefined): string | null {
+  if (!datasetId) return null;
+  try {
+    return (JSON.parse(localStorage.getItem(ASSIGN) ?? '{}') as Record<string, string>)[datasetId] ?? null;
+  } catch {
+    return null;
+  }
+}
+export function assignShop(datasetId: string | null | undefined, shop: string) {
+  if (!datasetId) return;
+  try {
+    const m = JSON.parse(localStorage.getItem(ASSIGN) ?? '{}') as Record<string, string>;
+    m[datasetId] = shop;
+    localStorage.setItem(ASSIGN, JSON.stringify(m));
+  } catch {
+    /* storage blocked: the owner is simply asked again next time */
+  }
 }
 export const validDay = (d: string | null | undefined): d is string => {
   if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
@@ -152,6 +175,8 @@ export function useFollowUps() {
     let live = true;
     setLoaded(false);
     setError(null);
+    latest.current = [];
+    setLists([]);
     (async () => {
       if (!user) {
         setLists(readLocal());
@@ -238,6 +263,31 @@ export function useFollowUps() {
     },
     [user?.id],
   );
+  /** Signed in: how many guest lists sit in this browser (never shown in the account unless moved on purpose). */
+  const browserCount = user ? readLocal().length : 0;
+  /** Signed in: copy this browser's guest lists into the account, then remove them from the browser. */
+  const moveBrowserLists = useCallback(async () => {
+    if (!user) return 'Log in first.';
+    const local = readLocal();
+    if (!local.length) return null;
+    const { error } = await supabase.from('follow_up_lists').insert(
+      local.map((l) => ({
+        id: l.id,
+        name: l.name,
+        since: l.since,
+        source: l.source,
+        replay: l.replay,
+        meta: l.meta,
+        accounts: l.accounts,
+        last_check: l.last_check,
+      })),
+    );
+    if (error) return 'Moving the lists failed. They are still in this browser.';
+    writeLocal([]);
+    latest.current = [...local, ...latest.current];
+    setLists(latest.current);
+    return null;
+  }, [user?.id]);
   /** Guests only: forget every list stored in this browser (shared computers). */
   const clearBrowser = useCallback(() => {
     if (user) return;
@@ -245,5 +295,16 @@ export function useFollowUps() {
     setLists([]);
     writeLocal([]);
   }, [user?.id]);
-  return { lists, loaded, error, where, create, update, remove, clearBrowser };
+  return {
+    lists,
+    loaded,
+    error,
+    where,
+    create,
+    update,
+    remove,
+    clearBrowser,
+    browserCount,
+    moveBrowserLists,
+  };
 }

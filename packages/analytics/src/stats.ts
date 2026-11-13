@@ -270,3 +270,25 @@ export function corrTest(r: number, n: number): TestResult {
     method,
   };
 }
+
+const logFact = (() => {
+  const memo: number[] = [0];
+  return (n: number) => {
+    for (let i = memo.length; i <= n; i++) memo[i] = memo[i - 1] + Math.log(i);
+    return memo[n];
+  };
+})();
+const logChoose = (n: number, k: number) => logFact(n) - logFact(k) - logFact(n - k);
+/** One-sided Fisher exact test: is the share a/n1 larger than b/n2? P(X ≥ a), X hypergeometric. */
+export function fisherGreater(a: number, n1: number, b: number, n2: number): number {
+  const N = n1 + n2,
+    K = a + b;
+  if (!n1 || !n2) return 1;
+  const tot = logChoose(N, n1);
+  let p = 0;
+  for (let x = a; x <= Math.min(K, n1); x++) {
+    if (K - x > n2 || K - x < 0) continue;
+    p += Math.exp(logChoose(K, x) + logChoose(N - K, n1 - x) - tot);
+  }
+  return Math.min(1, p);
+}

@@ -199,7 +199,7 @@ export default function Customers() {
       <Card c="var(--amber)" className="lg:col-span-6" hover={false}>
         <CardHead
           icon={<BellRing size={13} />}
-          title="Worth checking on"
+          title="Early warning: regulars 45–90 days silent"
           c="var(--amber)"
           right={
             <Chip c="var(--amber)" pulse>
@@ -230,7 +230,7 @@ export default function Customers() {
       <Card c="var(--emerald)" className="lg:col-span-6" hover={false}>
         <CardHead
           icon={<FlaskConical size={13} />}
-          title="Did the warning work before?"
+          title="Did the early warning work before?"
           c="var(--emerald)"
           right={
             b?.p !== null &&

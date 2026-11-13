@@ -14,6 +14,7 @@ import {
   sliceBefore,
   followUpCheck,
   parseDay,
+  quietRuleBacktest,
   stockOuts,
   cashRadar,
   eventImpact,
@@ -316,9 +317,30 @@ export const winBackTool = defineTool({
       }),
     ),
     total: z.number(),
+    backtest: z
+      .object({
+        ok: z.boolean(),
+        reason: z.string().optional(),
+        rule: z.string(),
+        replays: z.array(
+          z.object({
+            asOf: z.string(),
+            windowDays: z.number(),
+            flagged: z.number(),
+            flaggedStayedAway: z.number(),
+            others: z.number(),
+            othersStayedAway: z.number(),
+            p: z.number(),
+          }),
+        ),
+      })
+      .optional()
+      .describe('This exact rule replayed 6 and 9 months back (latest data only, not for replays).'),
   }),
   async handler(ctx, { shopName, asOf }) {
-    return winBackList(replayView(ctx.state.view(), asOf), shopName);
+    const v = replayView(ctx.state.view(), asOf);
+    const r = winBackList(v, shopName);
+    return asOf ? r : { ...r, backtest: memo(v.rows, 'quiet-backtest', () => quietRuleBacktest(v)) };
   },
 });
 
@@ -381,6 +403,17 @@ export const followUpTool = defineTool({
     note: z.string(),
   }),
   async handler(ctx, { since, customers, contacts }) {
+    // A contact can't happen before the list existed, or in the future (UTC day).
+    const today = new Date().toISOString().slice(0, 10);
+    const bad = Object.entries(contacts ?? {}).find(([, d]) => d < since || d > today);
+    if (bad) {
+      const r = followUpCheck(ctx.state.dataset, since, customers, {});
+      return {
+        ...r,
+        ok: false,
+        reason: `The contact day for ${bad[0]} (${bad[1]}) is ${bad[1] < since ? `before the list was made (${since})` : 'in the future'}. Correct it, then check again.`,
+      };
+    }
     const r = followUpCheck(ctx.state.dataset, since, customers, contacts ?? {});
     if (ctx.state.filters.size)
       return {

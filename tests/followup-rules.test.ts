@@ -61,6 +61,20 @@ describe('saved-list snapshot rules', () => {
     const bad = applyEdit(o, { ...o, accounts: [{ ...o.accounts[0], contactedOn: '2025-02-31' }] });
     expect(bad.accounts[0].contactedOn).toBe('2025-05-03');
   });
+  it('changing who was contacted, or when, clears the old recheck', () => {
+    const check: any = { at: 'x', orderedAgain: 1 };
+    const o = {
+      ...list(),
+      accounts: [acc('A', { status: 'contacted', contactedOn: '2025-05-03' })],
+      last_check: check,
+    };
+    const noteOnly = applyEdit(o, { ...o, accounts: [{ ...o.accounts[0], note: 'called' }] });
+    expect(noteOnly.last_check).toBe(check); // a note doesn't change what was measured
+    const moved = applyEdit(o, { ...o, accounts: [{ ...o.accounts[0], contactedOn: '2025-05-04' }] });
+    expect(moved.last_check).toBeNull();
+    const undone = applyEdit(o, { ...o, accounts: [{ ...o.accounts[0], status: 'todo' as const }] });
+    expect(undone.last_check).toBeNull();
+  });
   it('a historical replay can never record a contact', () => {
     const o = list(true);
     const n = applyEdit(o, {
