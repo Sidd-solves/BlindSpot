@@ -19,18 +19,27 @@ cdp.on('Page.screencastFrame', async (f) => {
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 72, maxWidth: 1440, maxHeight: 900, everyNthFrame: 1 });
 const T0 = Date.now();
 const at = async (sec) => { const w = T0 + sec * 1000 - Date.now(); if (w > 0) await p.waitForTimeout(w); };
-const cap = async (i) => p.evaluate(([t, secs]) => {
+const cap = async (i, whole = false) => p.evaluate(([t, secs, whole]) => {
   let el = document.getElementById('__cap');
   if (!el) {
     el = document.createElement('div'); el.id = '__cap';
-    Object.assign(el.style, { position: 'fixed', left: '50%', bottom: '18px', transform: 'translateX(-50%)', maxWidth: '1180px', zIndex: 99999,
-      padding: '12px 20px', borderRadius: '14px', background: 'rgba(8,8,20,.82)', color: '#fff', font: '700 30px/1.3 Manrope, system-ui, sans-serif',
+    Object.assign(el.style, { position: 'fixed', left: '50%', bottom: '18px', transform: 'translateX(-50%)', maxWidth: '1300px', zIndex: 99999,
+      padding: '12px 20px', borderRadius: '14px', background: 'rgba(8,8,20,.82)', color: '#fff', font: '800 40px/1.25 Manrope, system-ui, sans-serif',
       textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.12)', pointerEvents: 'none' });
     document.body.appendChild(el);
   }
   // One sentence at a time, each shown for a share of the scene proportional to its words.
   clearTimeout(window.__capT);
-  const parts = t.match(/[^.!?:]+[.!?:]+["”]?|[^.!?:]+$/g).map((x) => x.trim()).filter(Boolean);
+  const sentences = t.match(/[^.!?:]+[.!?:]+["”]?|[^.!?:]+$/g).map((x) => x.trim()).filter(Boolean);
+  // Long sentences are split at a comma or dash near the middle, so a caption is at most two short lines on a phone.
+  const parts = whole ? [t] : sentences.flatMap((x) => {
+    const w = x.split(/\s+/);
+    if (w.length <= 12) return [x];
+    const cuts = [...x.matchAll(/[,—–]\s/g)].map((m) => m.index + 1);
+    if (!cuts.length) return [x.split(/\s+/).slice(0, Math.ceil(w.length / 2)).join(' '), x.split(/\s+/).slice(Math.ceil(w.length / 2)).join(' ')];
+    const mid = x.length / 2, c = cuts.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a));
+    return [x.slice(0, c).trim(), x.slice(c).trim()];
+  });
   const words = parts.map((x) => x.split(/\s+/).length), total = words.reduce((a, b) => a + b, 0);
   let k = 0;
   const show = () => {
@@ -38,7 +47,7 @@ const cap = async (i) => p.evaluate(([t, secs]) => {
     if (k < parts.length - 1) window.__capT = setTimeout(() => { k++; show(); }, (words[k] / total) * secs * 1000);
   };
   show();
-}, [lines[i], SLOTS[i]]);
+}, [lines[i], SLOTS[i], whole]);
 const SLOTS = [14, 16, 15, 23, 22, 20, 35, 13, 7];
 const log = [];
 const mark = (l) => log.push(`${((Date.now() - T0) / 1000).toFixed(1)}s ${l}`);
@@ -89,8 +98,9 @@ await p.waitForTimeout(500);
 await p.locator('button', { hasText: /^Practice run · / }).first().click({ force: true });
 mark('lists'); await at(158);
 // 2:38 close
-await cap(8); await p.evaluate(() => (location.hash = '/home')); await p.waitForTimeout(300);
-await p.evaluate(() => { location.hash = ''; }); mark('close'); await at(165);
+// Straight to the site home (no app page in between), with the whole closing line on screen at once.
+await p.evaluate(() => { location.hash = ''; window.scrollTo(0, 0); });
+await cap(8, true); mark('close'); await at(165);
 await cdp.send('Page.stopScreencast');
 writeFileSync(`${vdir}frames.json`, JSON.stringify(frames));
 await ctx.close(); await b.close();
