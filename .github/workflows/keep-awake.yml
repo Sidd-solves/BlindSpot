@@ -1,11 +1,13 @@
 # Render's free plan puts the server to sleep after 15 minutes with no visitors, and the next visitor waits
-# 30–60 seconds while it wakes. This pings the health endpoint every 5 minutes so it stays awake.
-# Only v2 (blindspot-pro) is pinged: one always-on free service uses ~720–744 hours a month, under Render's 750.
-# November 2026 ran short on free hours, so pinging is paused until Dec 1 and the site sleeps when idle until then.
+# 30–60 seconds while it wakes. This pings the health endpoint every 5 minutes during the day so it stays instant.
+# Only v2 (blindspot-pro) is pinged, 6 AM to midnight US Central (12:00–06:00 UTC): ~18 h/day, ~558 h in a
+# 31-day month, leaving ~190 of Render's 750 free hours spare. At night it sleeps and wakes on the first visit.
+# November 2026 ran short on free hours, so pinging is paused until Dec 1 (the site sleeps when idle until then).
 name: Keep the live demo awake
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/5 12-23 * * *'
+    - cron: '*/5 0-5 * * *'
   workflow_dispatch:
 jobs:
   ping:
